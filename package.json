@@ -6,21 +6,48 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/migrate.ts",
+    "db:seed": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/seed.ts",
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "admin:create": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/create-admin.ts",
+    "assets:render": "node scripts/assets/render.mjs public/products/magcharge-76",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "drizzle-orm": "^0.45.4",
+    "lucide-react": "^1.59.0",
     "next": "16.4.2",
+    "pg": "^8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@fontsource-variable/readex-pro": "^5.3.0",
+    "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=20.9"
   }
 }

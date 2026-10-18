@@ -1,26 +1,220 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ───────────────── Fonts (self-hosted, no layout shift: font-display swap + metric-close fallbacks) */
+@font-face {
+  font-family: "Readex Pro";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 160 700;
+  src: url(/fonts/readex-pro-arabic-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
 }
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@font-face {
+  font-family: "Readex Pro";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 160 700;
+  src: url(/fonts/readex-pro-latin-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+@font-face { font-family: "Plex Arabic"; font-style: normal; font-display: swap; font-weight: 400; src: url(/fonts/ibm-plex-sans-arabic-arabic-400-normal.woff2) format("woff2"); unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC; }
+@font-face { font-family: "Plex Arabic"; font-style: normal; font-display: swap; font-weight: 500; src: url(/fonts/ibm-plex-sans-arabic-arabic-500-normal.woff2) format("woff2"); unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC; }
+@font-face { font-family: "Plex Arabic"; font-style: normal; font-display: swap; font-weight: 600; src: url(/fonts/ibm-plex-sans-arabic-arabic-600-normal.woff2) format("woff2"); unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC; }
+@font-face { font-family: "Plex Arabic"; font-style: normal; font-display: swap; font-weight: 700; src: url(/fonts/ibm-plex-sans-arabic-arabic-700-normal.woff2) format("woff2"); unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC; }
+@font-face { font-family: "Plex Arabic"; font-style: normal; font-display: swap; font-weight: 400; src: url(/fonts/ibm-plex-sans-arabic-latin-400-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+@font-face { font-family: "Plex Arabic"; font-style: normal; font-display: swap; font-weight: 500; src: url(/fonts/ibm-plex-sans-arabic-latin-500-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+@font-face { font-family: "Plex Arabic"; font-style: normal; font-display: swap; font-weight: 600; src: url(/fonts/ibm-plex-sans-arabic-latin-600-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+@font-face { font-family: "Plex Arabic"; font-style: normal; font-display: swap; font-weight: 700; src: url(/fonts/ibm-plex-sans-arabic-latin-700-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Fallback with adjusted metrics to reduce CLS while the brand fonts load */
+@font-face { font-family: "Plex Fallback"; src: local("Tahoma"), local("Arial"); size-adjust: 104%; ascent-override: 98%; descent-override: 42%; }
+@font-face { font-family: "Readex Fallback"; src: local("Tahoma"), local("Arial"); size-adjust: 108%; ascent-override: 96%; descent-override: 40%; }
+
+/* ───────────────── Design tokens
+   Ink:   blue-black stage colour (the product's world)
+   Paper: warm porcelain reading surface
+   Metal: brushed aluminium greys
+   Volt:  electric blue — actions only
+   Field: cyan glow — the magnetic "snap" motif only
+*/
+@theme {
+  --color-ink: #0a0e14;
+  --color-ink-2: #121821;
+  --color-ink-3: #1b2330;
+  --color-paper: #f5f3ef;
+  --color-paper-2: #ebe8e2;
+  --color-porcelain: #fbfaf8;
+  --color-metal-100: #e3e5e8;
+  --color-metal-300: #b9bec6;
+  --color-metal-500: #7d8591;
+  --color-metal-700: #4a525e;
+  --color-volt: #2d63f5;
+  --color-volt-strong: #1f4fd6;
+  --color-field: #58d8ef;
+  --color-ok: #1f8a5b;
+  --color-warn: #b7791f;
+  --color-danger: #c2412d;
+
+  --font-display: "Readex Pro", "Readex Fallback", system-ui, sans-serif;
+  --font-sans: "Plex Arabic", "Plex Fallback", system-ui, sans-serif;
+
+  --radius-panel: 18px;
+  --radius-field: 12px;
+
+  --ease-snap: cubic-bezier(0.2, 0.9, 0.1, 1);
+  --ease-calm: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --animate-snap-in: snap-in 700ms var(--ease-snap) both;
+  --animate-fade-up: fade-up 600ms var(--ease-calm) both;
+
+  @keyframes snap-in {
+    0% { transform: scale(0.86); opacity: 0; }
+    60% { transform: scale(1.02); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes fade-up {
+    from { transform: translateY(12px); opacity: 0; }
+    to { transform: none; opacity: 1; }
   }
 }
 
+:root {
+  color-scheme: light;
+  --header-h: 64px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+p { text-wrap: pretty; }
+
+/* Latin numerals and prices always read left-to-right inside RTL text */
+.num { font-family: var(--font-display); font-variant-numeric: tabular-nums; unicode-bidi: isolate; direction: ltr; display: inline-block; }
+
+:focus-visible {
+  outline: 2px solid var(--color-volt);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+::selection { background: color-mix(in oklab, var(--color-field) 45%, white); color: var(--color-ink); }
+
+/* ───────────────── Components */
+@layer components {
+  .container-x { width: 100%; max-width: 1200px; margin-inline: auto; padding-inline: 16px; }
+  @media (min-width: 768px) { .container-x { padding-inline: 32px; } }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    min-height: 48px; padding-inline: 1.4rem; border-radius: 999px;
+    font-family: var(--font-display); font-weight: 500; font-size: 1rem;
+    transition: background-color 160ms var(--ease-calm), color 160ms, border-color 160ms, transform 120ms;
+    -webkit-tap-highlight-color: transparent; user-select: none; white-space: nowrap;
+  }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-primary { background: var(--color-volt); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--color-volt-strong); }
+  .btn-ink { background: var(--color-ink); color: var(--color-porcelain); }
+  .btn-ink:hover:not(:disabled) { background: var(--color-ink-3); }
+  .btn-ghost { border: 1px solid color-mix(in oklab, currentColor 28%, transparent); }
+  .btn-ghost:hover:not(:disabled) { border-color: currentColor; }
+  .btn-sm { min-height: 38px; padding-inline: 1rem; font-size: 0.9rem; }
+
+  .field {
+    width: 100%; min-height: 48px; border-radius: var(--radius-field);
+    border: 1px solid var(--color-metal-300); background: white;
+    padding: 0.65rem 0.9rem; font-size: 1rem; color: var(--color-ink);
+    transition: border-color 140ms, box-shadow 140ms;
+  }
+  .field:focus { outline: none; border-color: var(--color-volt); box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-volt) 18%, transparent); }
+  .field[aria-invalid="true"] { border-color: var(--color-danger); }
+  .label { display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.35rem; color: var(--color-metal-700); }
+
+  .panel { background: var(--color-porcelain); border: 1px solid var(--color-paper-2); border-radius: var(--radius-panel); }
+
+  .skeleton { background: linear-gradient(90deg, var(--color-paper-2), var(--color-metal-100), var(--color-paper-2)); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; border-radius: 8px; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  /* Rich text from the admin (policies, long descriptions) */
+  .prose-store { max-width: 68ch; line-height: 1.9; }
+  .prose-store h2 { font-size: 1.35rem; margin-top: 2rem; margin-bottom: 0.6rem; }
+  .prose-store h3 { font-size: 1.1rem; margin-top: 1.4rem; margin-bottom: 0.4rem; }
+  .prose-store p { margin-block: 0.75rem; }
+  .prose-store ul { list-style: disc; padding-inline-start: 1.4rem; margin-block: 0.75rem; }
+  .prose-store li { margin-block: 0.3rem; }
+  .prose-store a { color: var(--color-volt); text-decoration: underline; text-underline-offset: 3px; }
+}
+
+/* ───────────────── Magnetic field motif */
+.field-rings { position: absolute; inset: 0; pointer-events: none; }
+.field-rings span {
+  position: absolute; inset: 0; margin: auto; border-radius: 50%;
+  border: 1px solid color-mix(in oklab, var(--color-field) 35%, transparent);
+  animation: ring-out 3.6s var(--ease-calm) infinite;
+  opacity: 0;
+}
+.field-rings span:nth-child(2) { animation-delay: 1.2s; }
+.field-rings span:nth-child(3) { animation-delay: 2.4s; }
+@keyframes ring-out {
+  0% { transform: scale(0.55); opacity: 0; }
+  20% { opacity: 0.9; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+/* Cart "snap" pulse */
+@keyframes cart-snap {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-field) 80%, transparent); }
+  100% { box-shadow: 0 0 0 14px transparent; }
+}
+.cart-snap { animation: cart-snap 600ms var(--ease-snap); }
+
+/* ───────────────── Intro (brand splash). Hidden by default without JS-confirmed first visit;
+   it can never block content: it self-dismisses via CSS even if JS fails. */
+.intro { position: fixed; inset: 0; z-index: 100; display: none; }
+html[data-intro="play"] .intro { display: grid; animation: intro-out 450ms var(--ease-calm) 2600ms forwards; }
+html[data-intro="done"] .intro { display: grid; animation: intro-out 380ms var(--ease-calm) forwards; }
+@keyframes intro-out { to { opacity: 0; visibility: hidden; } }
+.intro-ring { stroke-dasharray: 302; stroke-dashoffset: 302; animation: ring-draw 1100ms var(--ease-snap) 150ms forwards; }
+@keyframes ring-draw { to { stroke-dashoffset: 34; } }
+.intro-progress { transform-origin: right; transform: scaleX(0); transition: transform 300ms var(--ease-calm); }
+[dir="ltr"] .intro-progress { transform-origin: left; }
+
+/* Drawer & overlays */
+.drawer-enter { animation: drawer-in 320ms var(--ease-snap) both; }
+@keyframes drawer-in { from { transform: translateX(100%); } to { transform: none; } }
+[dir="rtl"] .drawer-enter { animation-name: drawer-in-rtl; }
+@keyframes drawer-in-rtl { from { transform: translateX(-100%); } to { transform: none; } }
+.backdrop-enter { animation: fade 240ms var(--ease-calm) both; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Marquee for the announcement bar */
+.marquee { display: flex; width: max-content; animation: marquee 38s linear infinite; }
+[dir="rtl"] .marquee { animation-name: marquee-rtl; }
+.marquee:hover { animation-play-state: paused; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@keyframes marquee-rtl { to { transform: translateX(50%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .field-rings { display: none; }
+  .marquee { animation: none; flex-wrap: wrap; width: auto; }
+  html[data-intro="play"] .intro { display: none; }
 }

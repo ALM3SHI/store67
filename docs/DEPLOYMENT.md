@@ -1,0 +1,67 @@
+# النشر وربط الخدمات
+
+## 1) قاعدة البيانات (Supabase أو أي PostgreSQL)
+1. أنشئ مشروع Supabase (المنطقة الأقرب: Middle East / Bahrain إن توفرت، أو Frankfurt).
+2. من Project Settings → Database انسخ **Connection string** (Session pooler) وضعه في `DATABASE_URL`.
+3. من جهازك: `DATABASE_URL="..." npm run db:migrate` ثم `npm run db:seed`.
+4. أنشئ حساب المالك: `DATABASE_URL="..." ADMIN_PASSWORD='...' npm run admin:create -- you@domain.sa "الاسم" owner`.
+5. الترحيلات تفعّل RLS على كل الجداول؛ لا تضف سياسات تسمح للمتصفح بقراءة الجداول.
+
+**النسخ الاحتياطي:** Supabase يأخذ نسخًا يومية في الخطط المدفوعة. نسخة يدوية:
+```bash
+pg_dump "$DATABASE_URL" --no-owner --format=custom -f store76-$(date +%F).dump
+# استعادة إلى قاعدة فارغة:
+pg_restore --no-owner -d "$NEW_DATABASE_URL" store76-YYYY-MM-DD.dump
+```
+احفظ النسخ خارج المزوّد نفسه، وجرّب الاستعادة مرة واحدة على الأقل قبل الإطلاق.
+
+## 2) تخزين الملفات
+على Vercel لا يوجد قرص دائم، لذا:
+1. في Supabase → Storage أنشئ دلوين: `public-media` (Public) و`private-docs` (**Private**).
+2. اضبط `STORAGE_DRIVER=supabase` و`SUPABASE_URL` و`SUPABASE_SERVICE_ROLE_KEY` (مفتاح خادم فقط).
+
+## 3) الاستضافة على Vercel
+1. ارفع المشروع إلى مستودع Git خاص (الملفات الحساسة مستبعدة في `.gitignore`).
+2. Import في Vercel → Framework: Next.js.
+3. أضف متغيرات البيئة من `.env.example` (Production):
+   `APP_ENV=production`، `APP_URL=https://your-domain.sa`، `SESSION_SECRET` (32+ حرفًا عشوائيًا)، `DATABASE_URL`، `CRON_SECRET`، ومفاتيح التخزين والدفع والشحن.
+   **لا تضف** `PAYMENTS_TEST_GATEWAY` في الإنتاج.
+4. `vercel.json` يجدول `/api/cron/expire-orders` كل 15 دقيقة لإعادة مخزون الطلبات غير المدفوعة. (خطة Hobby تسمح بتشغيل يومي فقط؛ اللوحة تشغّل نفس التنظيف عند فتحها، وإتمام كل طلب يشغّله أيضًا.)
+5. أي بيئة Preview: `APP_ENV=staging` (لا فهرسة، وبوابة الاختبار متاحة إن أردت).
+
+بديل Vercel: أي خادم Node 20+ (`npm ci && npm run build && npm start`) خلف HTTPS.
+
+## 4) النطاق
+1. Vercel → Settings → Domains → أضف `your-domain.sa` و`www`.
+2. عدّل سجلات DNS لدى مسجّل النطاق كما يطلب Vercel (A أو CNAME).
+3. حدّث `APP_URL` لنفس النطاق ثم أعد النشر (روابط الطلبات وخريطة الموقع تعتمد عليه).
+
+## 5) Moyasar (الدفع)
+1. افتح حساب تاجر لدى Moyasar وأكمل التوثيق (سجل تجاري، حساب بنكي...). مدى وApple Pay وSTC Pay تُفعَّل من جهتهم حسب حسابك.
+2. ابدأ بمفاتيح **الاختبار**: `MOYASAR_SECRET_KEY=sk_test_...`.
+3. Dashboard → Settings → Webhooks: أضف
+   - URL: `https://your-domain.sa/api/payments/moyasar/webhook`
+   - Secret Token: قيمة عشوائية طويلة، وضعها في `MOYASAR_WEBHOOK_SECRET`
+   - Events: payment_paid, payment_failed, payment_refunded, payment_voided
+4. جرّب طلبًا ببطاقات الاختبار من توثيق Moyasar: نجاح، رفض، إلغاء، ثم استرجاع من لوحة التحكم. تأكد أن حالة الطلب تتغير وأن «التحقق من حالة الدفع لدى البوابة» يعمل.
+5. في الإعدادات → طرق الدفع اختر شعارات الطرق المفعلة فعلًا في حسابك.
+6. بعد اعتماد الحساب الحي: بدّل إلى `sk_live_...` وأنشئ Webhook حيًا بنفس الطريقة، ثم نفّذ عملية حقيقية صغيرة واسترجعها.
+
+> راجع توثيق Moyasar الرسمي قبل الإطلاق (https://docs.moyasar.com) — التكامل يستخدم Invoices API والمصادقة Basic بالمفتاح السري، وأي تغيير من جهتهم يتطلب تحديث `services/payments/moyasar.ts`.
+
+## 6) أرامكس (الشحن)
+1. اطلب من مدير حسابك في أرامكس بيانات API: UserName, Password, AccountNumber, AccountPin, AccountEntity، وعنوان بيئة الاختبار.
+2. ضعها في متغيرات `ARAMEX_*` واضبط `ARAMEX_BASE_URL` لبيئة الاختبار أولًا.
+3. في الإعدادات → الشحن: أدخل عنوان المستودع وهاتفه، واختر «حساب مباشر من أرامكس» إن أردت تسعيرًا حيًا.
+4. اختبر: طلب تجريبي ← «إنشاء شحنة أرامكس» من صفحة الطلب ← تأكد من رقم التتبع وملصق الشحن ← «تحديث التتبع».
+5. أنواع المنتج المستخدمة: `DOM/ONP` (محلي). إن كان عقدك بنوع آخر عدّلها في `services/shipping/aramex.ts`.
+6. بدون بيانات أرامكس: الشحن يدوي بسعر ثابت، وتدخل رقم التتبع ورابطه يدويًا من صفحة الطلب.
+
+## 7) Google
+- **Search Console:** أضف النطاق كـ Domain property (سجل TXT) أو انسخ قيمة وسم HTML إلى الإعدادات → محركات البحث. ثم أرسل `https://your-domain.sa/sitemap.xml`.
+- **Merchant Center:** بعد اكتمال صفحات السياسات وبيانات التواصل، أضف خلاصة: `https://your-domain.sa/feeds/google-merchant.xml` (جدولة يومية). أدخل GTIN في المنتج إن وُجد.
+- **Analytics:** أدخل معرّف GA4 في الإعدادات → أدوات القياس. لا يُحمّل إلا بعد موافقة الزائر.
+- لا توجد طريقة تقنية تضمن ترتيبًا معينًا في نتائج البحث؛ المتجر يزيل العوائق التقنية فقط.
+
+## 8) المساعد الذكي (اختياري)
+ضع `ANTHROPIC_API_KEY` لتفعيل الإجابات المولدة من بيانات المتجر فقط، مع حد يومي `ASSISTANT_DAILY_LIMIT`. بدونه يجيب المساعد من الأسئلة المتكررة ويقول بوضوح إن لم يجد إجابة.
