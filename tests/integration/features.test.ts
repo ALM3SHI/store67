@@ -10,7 +10,6 @@ import { transport } from "@/services/notify/transport";
 import { notifyOrder } from "@/services/notify";
 import { subscribeStockAlert, sendBackInStockAlerts, stockAlertCounts } from "@/services/stock-alerts";
 import { exportOrdersCsv, csvCell } from "@/services/order-export";
-import { makeToken, readToken, requestOrdersLink, ordersForEmail } from "@/services/customer-access";
 import { beginTwoFactorSetup, confirmTwoFactorSetup, verifySecondFactor, signPendingLogin, readPendingLogin, twoFactorStatus } from "@/services/two-factor";
 import { hotp, totpStep, base32Encode, verifyTotp } from "@/lib/totp";
 import { buildQuote } from "@/services/quote";
@@ -121,29 +120,6 @@ describe("orders export", () => {
     expect(csv).toContain("\"'=HYPERLINK(\"\"x\"\")\"");
     expect(csv).toContain("رقم الطلب");
     expect(csvCell("+1")).toBe("\"'+1\"");
-  });
-});
-
-describe("my orders (passwordless)", () => {
-  it("signed links and sessions can't be forged or reused after expiry", () => {
-    const tok = makeToken("link", "a@b.com", 60_000);
-    expect(readToken("link", tok)).toBe("a@b.com");
-    expect(readToken("session", tok)).toBeNull(); // purpose-bound
-    expect(readToken("link", tok.replace(/.$/, (c) => (c === "a" ? "b" : "a")))).toBeNull();
-    expect(readToken("link", tok, Date.now() + 120_000)).toBeNull();
-  });
-
-  it("emails a link only to addresses that have orders and lists them", async () => {
-    const { emails } = capture();
-    await requestOrdersLink("nobody@example.com", "ar", "9.9.9.9", db);
-    expect(emails).toHaveLength(0);
-    await requestOrdersLink("NOURA@example.com", "ar", "9.9.9.9", db);
-    expect(emails).toHaveLength(1);
-    const token = decodeURIComponent(/token=([^\s&]+)/.exec(emails[0]!.text)![1]!);
-    expect(readToken("link", token)).toBe("noura@example.com");
-    const list = await ordersForEmail("noura@example.com", db);
-    expect(list.length).toBeGreaterThan(0);
-    expect(list[0]!.link).toContain("/ar/orders/");
   });
 });
 

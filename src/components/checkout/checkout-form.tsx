@@ -34,7 +34,14 @@ function newKey() {
   return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function CheckoutForm({ cities, paymentBadges }: { cities: City[]; paymentBadges: string[] }) {
+export type CheckoutAccount = {
+  name: string;
+  phone: string;
+  email: string;
+  addresses: { id: string; label: string; recipientName: string; phone: string; city: string; district: string; street: string; nationalAddress: string; postalCode: string; isDefault: boolean }[];
+};
+
+export function CheckoutForm({ cities, paymentBadges, account = null }: { cities: City[]; paymentBadges: string[]; account?: CheckoutAccount | null }) {
   const { t, locale } = useI18n();
   const cart = useCart();
   const [form, setForm] = useState<Form>(EMPTY);
@@ -50,14 +57,32 @@ export function CheckoutForm({ cities, paymentBadges }: { cities: City[]; paymen
 
   // Restore a saved draft (kept on this device only)
   useEffect(() => {
+    let draft: Partial<Form> | null = null;
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) setForm({ ...EMPTY, ...(JSON.parse(raw) as Partial<Form>), notes: "" });
+      if (raw) draft = JSON.parse(raw) as Partial<Form>;
     } catch {
       /* ignore */
     }
+    // Signed in: start from the account's details and default address; a draft on this device still wins.
+    const def = account?.addresses.find((a) => a.isDefault) ?? account?.addresses[0];
+    const fromAccount: Partial<Form> = account
+      ? {
+          name: def?.recipientName || account.name,
+          phone: def?.phone || account.phone,
+          email: account.email,
+          ...(def ? { city: def.city, district: def.district, street: def.street, nationalAddress: def.nationalAddress, postalCode: def.postalCode } : {}),
+        }
+      : {};
+    const filled = Object.fromEntries(Object.entries(draft ?? {}).filter(([, v]) => typeof v === "string" && v !== ""));
+    setForm({ ...EMPTY, ...fromAccount, ...filled, notes: "" });
     setDraftLoaded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount
   }, []);
+  const [saveAddress, setSaveAddress] = useState(true);
+  const matchesSaved = Boolean(account?.addresses.some((a) => a.city === form.city && a.district === form.district && a.street === form.street));
+  const applySaved = (a: CheckoutAccount["addresses"][number]) =>
+    setForm((f) => ({ ...f, name: a.recipientName || f.name, phone: a.phone || f.phone, city: a.city, district: a.district, street: a.street, nationalAddress: a.nationalAddress, postalCode: a.postalCode }));
   useEffect(() => {
     if (!draftLoaded) return;
     try {
@@ -102,6 +127,7 @@ export function CheckoutForm({ cities, paymentBadges }: { cities: City[]; paymen
     paymentMethod: form.paymentMethod,
     customer: { name: form.name, phone: form.phone, email: form.email },
     address: { city: form.city, district: form.district, street: form.street, nationalAddress: form.nationalAddress, postalCode: form.postalCode, notes: form.notes },
+    saveAddress: Boolean(account) && !matchesSaved && saveAddress,
   });
 
   const validate = (): Partial<Record<keyof Form, string>> => {
@@ -408,6 +434,14 @@ export function CheckoutForm({ cities, paymentBadges }: { cities: City[]; paymen
           </div>
         ) : null}
 
+        {!account ? (
+          <p className="rounded-xl bg-paper-2/70 px-4 py-3 text-sm">
+            <Link href={`/${locale}/login?next=${encodeURIComponent(`/${locale}/checkout`)}`} className="font-medium text-volt underline-offset-4 hover:underline" data-testid="checkout-login">
+              {t.account.signInForFaster}
+            </Link>
+          </p>
+        ) : null}
+
         <fieldset className="space-y-4">
           <legend className="mb-4 text-xl font-semibold">{t.checkout.contact}</legend>
           {input("name", t.checkout.name, { autoComplete: "name", required: true, maxLength: 80 })}
@@ -417,6 +451,25 @@ export function CheckoutForm({ cities, paymentBadges }: { cities: City[]; paymen
 
         <fieldset className="space-y-4">
           <legend className="mb-4 text-xl font-semibold">{t.checkout.address}</legend>
+          {account?.addresses.length ? (
+            <div className="flex flex-wrap gap-2" data-testid="saved-addresses" aria-label={t.account.savedAddresses}>
+              {account.addresses.map((a) => {
+                const on = a.city === form.city && a.district === form.district && a.street === form.street;
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => applySaved(a)}
+                    aria-pressed={on}
+                    className={cn("rounded-xl border px-3 py-2 text-start text-sm", on ? "border-ink bg-ink text-white" : "border-metal-300 hover:border-ink")}
+                  >
+                    <span className="block font-medium">{a.label || a.district}</span>
+                    <span className={cn("block text-xs", on ? "text-metal-300" : "text-metal-500")}>{a.street}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
           <div>
             <label htmlFor="f-city" className="label">
               {t.checkout.city}
@@ -440,6 +493,9 @@ export function CheckoutForm({ cities, paymentBadges }: { cities: City[]; paymen
             {input("postalCode", t.checkout.postalCode, { inputMode: "numeric", autoComplete: "postal-code", dir: "ltr", maxLength: 5, className: "field text-start" })}
           </div>
           {input("street", t.checkout.street, { autoComplete: "street-address", required: true })}
+          {account && !matchesSaved && form.street ? (
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} /> {t.account.saveAddressCheckbox}</label>
+          ) : null}
           {input("nationalAddress", t.checkout.nationalAddress, { dir: "ltr", maxLength: 8, autoCapitalize: "characters", className: "field text-start uppercase" }, t.checkout.nationalAddressHint)}
           <div>
             <label htmlFor="f-notes" className="label">

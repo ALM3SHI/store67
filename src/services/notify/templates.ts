@@ -237,15 +237,17 @@ export function renderOrderSms(kind: "order_confirmed" | "order_shipped", d: { l
     : `${d.storeName}: شُحن طلبك ${d.number}${d.tracking ? ` برقم تتبع ${d.tracking}` : ""}. ${d.link}`;
 }
 
-export function renderOrdersLink(d: { locale: Lang; link: string; minutes: number; storeName: string }) {
+
+/** Sign-in code (SMS stays short; the code leads so phones can auto-fill it). */
+export function renderLoginCode(d: { locale: Lang; code: string; minutes: number; storeName: string }) {
   const ar = d.locale === "ar";
-  const subject = ar ? `رابط الدخول لطلباتك — ${d.storeName}` : `Your sign-in link — ${d.storeName}`;
-  const body = ar ? `افتح الرابط خلال ${d.minutes} دقيقة لعرض كل طلباتك.` : `Open this link within ${d.minutes} minutes to see all your orders.`;
-  const cta = ar ? "عرض طلباتي" : "View my orders";
-  const foot = ar ? "إن لم تطلب هذا الرابط فتجاهل الرسالة." : "If you didn't ask for this link, you can ignore this email.";
-  const html = `<div dir="${ar ? "rtl" : "ltr"}" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8;max-width:520px;color:#0a0e14">
-<p style="font-weight:bold;font-size:18px;margin:0 0 8px">${esc(d.storeName)}</p><p>${esc(body)}</p>
-<p><a href="${esc(d.link)}" style="display:inline-block;background:#2d63f5;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px">${cta}</a></p>
-<p style="color:#7d8591;font-size:12px">${foot}</p></div>`;
-  return { subject, html, text: `${body}\n\n${d.link}\n\n${foot}` };
+  const sms = ar ? `${d.code} رمز الدخول إلى ${d.storeName}. صالح ${d.minutes} دقائق. لا تشاركه مع أحد.` : `${d.code} is your ${d.storeName} sign-in code. Valid ${d.minutes} minutes. Don't share it.`;
+  const subject = ar ? `رمز الدخول: ${d.code} — ${d.storeName}` : `Your sign-in code: ${d.code} — ${d.storeName}`;
+  const note = ar ? `صالح لمدة ${d.minutes} دقائق. إن لم تطلبه فتجاهل الرسالة؛ لن نطلب منك هذا الرمز أبدًا.` : `Valid for ${d.minutes} minutes. If you didn't request it, ignore this email — we will never ask you for this code.`;
+  const html = `<div dir="${ar ? "rtl" : "ltr"}" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8;max-width:480px;color:#0a0e14">
+<p style="font-weight:bold;font-size:18px;margin:0 0 8px">${esc(d.storeName)}</p>
+<p>${ar ? "رمز الدخول إلى حسابك:" : "Your sign-in code:"}</p>
+<p style="font-size:32px;letter-spacing:8px;font-weight:bold;font-family:monospace" dir="ltr">${esc(d.code)}</p>
+<p style="color:#7d8591;font-size:13px">${note}</p></div>`;
+  return { sms, subject, html, text: `${ar ? "رمز الدخول" : "Sign-in code"}: ${d.code}\n\n${note}` };
 }

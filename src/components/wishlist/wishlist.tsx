@@ -1,5 +1,5 @@
 "use client";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Heart } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
@@ -21,8 +21,20 @@ function read(): string[] {
   return cache;
 }
 
-function write(next: string[]) {
+/** Set by <WishlistSync> when a customer is signed in: changes are saved to the account too. */
+let syncToAccount = false;
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+function pushToAccount(list: string[]) {
+  if (!syncToAccount) return;
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    fetch("/api/account/wishlist", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slugs: list }) }).catch(() => {});
+  }, 400);
+}
+
+function write(next: string[], push = true) {
   cache = next;
+  if (push) pushToAccount(next);
   try {
     localStorage.setItem(KEY, JSON.stringify(next));
   } catch {
@@ -77,4 +89,30 @@ export function WishlistButton({ slug, tone = "light", className }: { slug: stri
       <Heart size={19} className={cn("transition-transform", on && "scale-110 fill-current")} />
     </button>
   );
+}
+
+/**
+ * When signed in: merges this device's wishlist with the account's (both ways)
+ * once per page load, then keeps saving changes to the account.
+ */
+export function WishlistSync({ signedIn }: { signedIn: boolean }) {
+  useEffect(() => {
+    syncToAccount = signedIn;
+    if (!signedIn) return;
+    let cancelled = false;
+    fetch("/api/account/wishlist")
+      .then((r) => (r.ok ? (r.json() as Promise<{ slugs: string[] }>) : null))
+      .then((data) => {
+        if (!data || cancelled) return;
+        const local = read();
+        const merged = [...new Set([...local, ...data.slugs])].slice(0, 100);
+        if (merged.length !== data.slugs.length) pushToAccount(merged);
+        if (merged.length !== local.length) write(merged, false);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn]);
+  return null;
 }

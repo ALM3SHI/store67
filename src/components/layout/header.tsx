@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Search, ShoppingBag, Menu, X, Languages, Heart } from "lucide-react";
+import { Search, ShoppingBag, Menu, X, Languages, Heart, UserRound } from "lucide-react";
 import { useWishlist } from "@/components/wishlist/wishlist";
 import { Logo } from "@/components/brand/logo";
 import { useI18n } from "@/components/i18n-provider";
@@ -10,7 +10,7 @@ import { useCart } from "@/components/cart/cart-provider";
 import { SearchDialog } from "@/components/search/search-dialog";
 import { cn } from "@/lib/utils";
 
-export function Header() {
+export function Header({ signedIn = false }: { signedIn?: boolean }) {
   const { t, locale } = useI18n();
   const cart = useCart();
   const wish = useWishlist();
@@ -40,7 +40,6 @@ export function Header() {
     { href: `/${locale}`, label: t.nav.home },
     { href: `/${locale}/products`, label: t.nav.shop },
     { href: `/${locale}/track`, label: t.nav.track },
-    { href: `/${locale}/account`, label: t.nav.myOrders },
     { href: `/${locale}/pages/shipping`, label: t.nav.policies },
   ];
 
@@ -77,6 +76,15 @@ export function Header() {
             <Languages size={18} aria-hidden />
             <span className="hidden sm:inline">{t.meta.switchTo}</span>
           </Link>
+          <Link
+            href={signedIn ? `/${locale}/account` : `/${locale}/login`}
+            className={cn(iconBtn, "relative")}
+            aria-label={signedIn ? t.nav.myOrders : t.nav.login}
+            data-testid="account-link"
+          >
+            <UserRound size={20} />
+            {signedIn ? <span className="absolute end-2 top-2 h-2 w-2 rounded-full bg-ok ring-2 ring-ink" aria-hidden /> : null}
+          </Link>
           <Link href={`/${locale}/wishlist`} className={cn(iconBtn, "relative hidden sm:inline-flex")} aria-label={`${t.nav.wishlist} (${wish.slugs.length})`} data-testid="wishlist-link">
             <Heart size={20} />
             {wish.slugs.length > 0 ? (
@@ -109,7 +117,11 @@ export function Header() {
         {menuOpen ? (
           <nav id="mobile-menu" className="border-t border-white/5 bg-ink md:hidden" aria-label={t.nav.menu}>
             <ul className="container-x flex flex-col py-2">
-              {[...links, { href: `/${locale}/wishlist`, label: `${t.nav.wishlist}${wish.slugs.length ? ` (${wish.slugs.length})` : ""}` }].map((l) => (
+              {[
+                ...links,
+                { href: signedIn ? `/${locale}/account` : `/${locale}/login`, label: signedIn ? t.nav.myOrders : t.nav.login },
+                { href: `/${locale}/wishlist`, label: `${t.nav.wishlist}${wish.slugs.length ? ` (${wish.slugs.length})` : ""}` },
+              ].map((l) => (
                 <li key={l.href}>
                   <Link href={l.href} onClick={() => setMenuOpen(false)} className="flex min-h-12 items-center rounded-xl px-3 text-lg text-metal-100 hover:bg-white/5">
                     {l.label}

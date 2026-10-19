@@ -1,3 +1,5 @@
+import { getCustomer } from "@/services/customer-auth";
+import { WishlistSync } from "@/components/wishlist/wishlist";
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import "../../globals.css";
@@ -58,7 +60,7 @@ export default async function StoreLayout({ children, params }: { children: Reac
   if (!isLocale(raw)) notFound();
   const locale = raw;
   const t = getDictionary(locale);
-  const [shell, products] = await Promise.all([getShell(locale), listPublishedProducts()]);
+  const [shell, products, customer] = await Promise.all([getShell(locale), listPublishedProducts(), getCustomer()]);
   const theme = shell.settings.theme;
   const heroImage = products[0]?.media[0]?.url ?? null;
   const suggestions =
@@ -88,7 +90,7 @@ export default async function StoreLayout({ children, params }: { children: Reac
               <Intro label={t.intro.loading} imageUrl={heroImage} />
               <div data-noprint className="contents">
                 <AnnouncementBar items={shell.announcements} />
-                <Header />
+                <Header signedIn={Boolean(customer)} />
                 <NetworkStatus />
               </div>
               <main id="main" className="min-h-[60vh]">
@@ -97,6 +99,7 @@ export default async function StoreLayout({ children, params }: { children: Reac
               <div data-noprint className="contents">
                 <Footer t={t} locale={locale} shell={shell} />
                 <CartDrawer />
+                <WishlistSync signedIn={Boolean(customer)} />
                 <HelpWidget whatsapp={shell.settings.store.whatsapp} aiEnabled={aiConfigured()} suggestions={suggestions} />
               </div>
               <Analytics ga4Id={shell.settings.analytics.ga4Id} metaPixelId={shell.settings.analytics.metaPixelId} tiktokPixelId={shell.settings.analytics.tiktokPixelId} />

@@ -33,13 +33,50 @@ test.describe("store features", () => {
     await expect(page.getByTestId("wishlist-empty")).toBeVisible();
   });
 
-  test("my orders: the sign-in form never reveals whether an email has orders", async ({ page }) => {
+  test("customer account: sign in with a code, save an address, checkout is pre-filled, order shows in my orders", async ({ page }) => {
+    const mobile = `05${String(Date.now()).slice(-8)}`;
     await page.goto("/ar/account");
-    await page.fill("#acc-email", "nobody@store76.test");
-    await page.getByRole("button", { name: "أرسل رابط الدخول" }).click();
-    await expect(page.getByTestId("orders-link-form").getByRole("status")).toContainText("إن كانت لدينا طلبات");
-    await page.goto("/ar/account/verify?token=forged.1.abc");
-    await expect(page).toHaveURL(/\/ar\/account\?invalid=1$/);
+    await expect(page).toHaveURL(/\/ar\/login/);
+    await page.fill("#login-id", mobile);
+    await page.getByRole("button", { name: "أرسل رمز الدخول" }).click();
+    const code = (await page.getByTestId("dev-code").locator("span").textContent())!.trim();
+    await page.fill("#login-code", "000000");
+    await page.getByRole("button", { name: "دخول" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "الرمز غير صحيح" })).toBeVisible();
+    await page.fill("#login-code", code);
+    await page.getByRole("button", { name: "دخول" }).click();
+    // first sign-in: asked to complete details
+    await expect(page).toHaveURL(/tab=profile&welcome=1/);
+    await page.fill("#pf-name", "سلمان العمري");
+    await page.getByTestId("profile-panel").getByRole("button", { name: "حفظ" }).first().click();
+    await expect(page.getByTestId("profile-panel").getByRole("status").first()).toContainText("تم الحفظ");
+
+    await page.goto("/ar/account?tab=addresses");
+    await page.getByTestId("add-address").click();
+    const form = page.getByTestId("address-form");
+    await form.locator('input[name="label"]').fill("البيت");
+    await form.locator('select[name="city"]').selectOption("Jeddah");
+    await form.locator('input[name="district"]').fill("الشاطئ");
+    await form.locator('input[name="street"]').fill("شارع الأمير فيصل 12");
+    await form.getByRole("button", { name: "حفظ" }).click();
+    await expect(page.getByTestId("address-card")).toContainText("البيت");
+
+    await page.goto("/ar/products/magcharge-76");
+    await page.getByTestId("add-to-cart").first().click();
+    await page.getByTestId("go-checkout").click();
+    await expect(page.locator("#f-name")).toHaveValue("سلمان العمري");
+    await expect(page.locator("#f-phone")).toHaveValue(mobile);
+    await expect(page.locator("#f-city")).toHaveValue("Jeddah");
+    await expect(page.locator("#f-street")).toHaveValue("شارع الأمير فيصل 12");
+    await expect(page.getByTestId("checkout-login")).toHaveCount(0);
+    await page.getByTestId("place-order").click();
+    await page.waitForURL(/\/ar\/(pay\/test|orders)\//);
+
+    await page.goto("/ar/account");
+    await expect(page.getByTestId("account-orders").locator("li")).toHaveCount(1);
+    await page.getByTestId("customer-logout").click();
+    await page.goto("/ar/account");
+    await expect(page).toHaveURL(/\/ar\/login/);
   });
 
   test("admin: export orders, print a packing slip, customer can print a receipt", async ({ page }) => {

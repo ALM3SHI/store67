@@ -3,7 +3,7 @@ import { noHorizontalScroll } from "./helpers";
 
 test.describe("mobile", () => {
   test("pages fit the screen without sideways scrolling", async ({ page }) => {
-    for (const p of ["/ar", "/ar/products/magcharge-76", "/ar/products", "/ar/checkout", "/ar/track", "/ar/pages/returns", "/ar/account", "/ar/wishlist", "/en"]) {
+    for (const p of ["/ar", "/ar/products/magcharge-76", "/ar/products", "/ar/checkout", "/ar/track", "/ar/pages/returns", "/ar/login", "/ar/wishlist", "/en"]) {
       await page.goto(p);
       await noHorizontalScroll(page);
     }

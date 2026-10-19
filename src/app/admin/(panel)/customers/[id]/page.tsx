@@ -23,12 +23,13 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
   const date = new Intl.DateTimeFormat("ar-SA-u-nu-latn-ca-gregory", { dateStyle: "medium", timeZone: "Asia/Riyadh" });
   return (
     <>
-      <PageHeader title={c.name} description={`عميل منذ ${date.format(c.createdAt)}`} />
+      <PageHeader title={c.name || c.email || "عميل"} description={`عميل منذ ${date.format(c.createdAt)}`} />
       <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
         <Card title="التواصل">
-          <p dir="ltr" className="text-start">{formatSaudiMobile(c.phone)}</p>
+          {c.phone ? <p dir="ltr" className="text-start">{formatSaudiMobile(c.phone)}</p> : null}
+          <p className="text-xs text-metal-500">{c.phoneVerifiedAt || c.emailVerifiedAt ? "لديه حساب في المتجر" : "طلب كضيف"}</p>
           {c.email ? <p dir="ltr" className="text-start">{c.email}</p> : null}
-          <a href={`https://wa.me/${c.phone.replace("+", "")}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm text-ok underline">مراسلة عبر واتساب</a>
+          {c.phone ? <a href={`https://wa.me/${c.phone.replace("+", "")}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm text-ok underline">مراسلة عبر واتساب</a> : null}
         </Card>
         <Card title={`الطلبات (${orders.length})`}>
           <ul className="divide-y divide-paper-2">

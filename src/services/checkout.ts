@@ -51,7 +51,7 @@ export { accessTokenFor, orderUrl } from "@/services/order-links";
  * and tax are all recomputed here — anything totals-related coming from the
  * browser is ignored.
  */
-export async function placeOrder(raw: unknown, opts: { db?: DbOrTx; now?: Date } = {}): Promise<CheckoutResult> {
+export async function placeOrder(raw: unknown, opts: { db?: DbOrTx; now?: Date; customerId?: string } = {}): Promise<CheckoutResult> {
   const parsed = checkoutSchema.safeParse(raw);
   if (!parsed.success) throw new CheckoutError("invalid_input", parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })));
   const input: CheckoutData = parsed.data;
@@ -119,14 +119,26 @@ export async function placeOrder(raw: unknown, opts: { db?: DbOrTx; now?: Date }
       if (!ok) throw new CheckoutError("out_of_stock", [{ variantId: l.variantId }]);
     }
 
-    const [customer] = await tx
-      .insert(schema.customers)
-      .values({ phone: input.customer.phone, name: input.customer.name, email: input.customer.email || null })
-      .onConflictDoUpdate({
-        target: schema.customers.phone,
-        set: { name: input.customer.name, email: sql`coalesce(${input.customer.email || null}, ${schema.customers.email})`, updatedAt: now },
-      })
-      .returning();
+    // Signed-in customers: the order belongs to their account. Guests: one record per mobile number.
+    const [customer] = opts.customerId
+      ? await tx
+          .update(schema.customers)
+          .set({
+            name: sql`case when ${schema.customers.name} = '' then ${input.customer.name} else ${schema.customers.name} end`,
+            email: sql`coalesce(${schema.customers.email}, ${input.customer.email || null})`,
+            updatedAt: now,
+          })
+          .where(eq(schema.customers.id, opts.customerId))
+          .returning()
+      : await tx
+          .insert(schema.customers)
+          .values({ phone: input.customer.phone, name: input.customer.name, email: input.customer.email || null })
+          .onConflictDoUpdate({
+            target: schema.customers.phone,
+            set: { name: input.customer.name, email: sql`coalesce(${input.customer.email || null}, ${schema.customers.email})`, updatedAt: now },
+          })
+          .returning();
+    if (!customer) throw new CheckoutError("invalid_input");
 
     let number = orderNumber(brand.orderPrefix);
     for (let i = 0; i < 3; i++) {

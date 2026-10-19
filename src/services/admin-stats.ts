@@ -1,5 +1,5 @@
 import "server-only";
-import { emailConfigured, telegramConfigured } from "@/services/notify";
+import { emailConfigured, telegramConfigured, smsConfigured } from "@/services/notify";
 import { countWithoutTwoFactor } from "@/services/two-factor";
 import { and, eq, gte, inArray, lte, sql, desc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
@@ -99,6 +99,7 @@ export async function launchReadiness(): Promise<ReadinessItem[]> {
     { key: "storage", label: "تخزين الصور سحابي (Supabase Storage)", ok: env.storage.driver === "supabase", hint: "على Vercel لا يبقى القرص المحلي؛ اضبط STORAGE_DRIVER=supabase.", href: "/admin/settings#integrations" },
     { key: "email", label: "بريد العملاء مهيأ (Resend)", ok: emailConfigured() && settings.notifications.customerEmails, hint: "أضف RESEND_API_KEY و EMAIL_FROM حتى يصل العميل تأكيد الطلب ورقم التتبع.", href: "/admin/settings#notifications" },
     { key: "alerts", label: "تنبيهات الطلبات الجديدة تصلك", ok: settings.notifications.newOrderAlerts && (telegramConfigured() || (emailConfigured() && settings.notifications.adminEmails !== "")), hint: "اربط تيليجرام أو أضف بريد الفريق ثم أرسل تنبيهًا تجريبيًا.", href: "/admin/settings#notifications" },
+    { key: "customer_login", label: "تسجيل دخول العملاء يعمل (SMS أو بريد)", ok: emailConfigured() || smsConfigured(), hint: "حسابات العملاء تحتاج إرسال رمز الدخول: اربط Resend للبريد أو تقنيات للجوال.", href: "/admin/settings#integrations" },
     { key: "2fa", label: "التحقق بخطوتين مفعّل لكل حسابات الإدارة", ok: tf.total > 0 && tf.enabled === tf.total, hint: `${tf.total - tf.enabled} حساب بدون تحقق بخطوتين. فعّله من «حسابي والأمان».`, href: "/admin/account" },
     { key: "contact", label: "بيانات التواصل مدخلة", ok: Boolean(settings.store.contactEmail || settings.store.contactPhone || settings.store.whatsapp), hint: "أضف بريدًا أو هاتفًا أو واتساب.", href: "/admin/settings#store" },
   ];

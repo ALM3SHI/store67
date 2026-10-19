@@ -318,15 +318,88 @@ export const reviews = pgTable(
 );
 
 /* ───────────────────────── Customers & orders */
-export const customers = pgTable("customers", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  /** E.164, e.g. +9665XXXXXXXX */
-  phone: text("phone").notNull().unique(),
-  name: text("name").notNull(),
-  email: text("email"),
-  marketingOptIn: boolean("marketing_opt_in").notNull().default(false),
-  ...timestamps,
-});
+export const customers = pgTable(
+  "customers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** E.164, e.g. +9665XXXXXXXX. Empty for accounts that signed up with email only. */
+    phone: text("phone").unique(),
+    name: text("name").notNull(),
+    email: text("email"),
+    marketingOptIn: boolean("marketing_opt_in").notNull().default(false),
+    /** Set when the customer proved ownership with a one-time code (= has an account) */
+    phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("customers_verified_email_idx").on(sql`lower(${t.email})`).where(sql`${t.emailVerifiedAt} is not null`)],
+);
+
+/** One-time login / verification codes (only a hash is stored). */
+export const customerOtps = pgTable(
+  "customer_otps",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channel: text("channel").notNull(), // sms | email
+    target: text("target").notNull(), // +9665… or lower-case email
+    purpose: text("purpose").notNull(), // login | link
+    customerId: uuid("customer_id").references(() => customers.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("customer_otps_target_idx").on(t.target)],
+);
+
+export const customerSessions = pgTable(
+  "customer_sessions",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("customer_sessions_customer_idx").on(t.customerId)],
+);
+
+export const customerAddresses = pgTable(
+  "customer_addresses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    label: text("label").notNull().default(""),
+    recipientName: text("recipient_name").notNull(),
+    phone: text("phone").notNull(),
+    city: text("city").notNull(),
+    district: text("district").notNull(),
+    street: text("street").notNull(),
+    nationalAddress: text("national_address").notNull().default(""),
+    postalCode: text("postal_code").notNull().default(""),
+    isDefault: boolean("is_default").notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [index("customer_addresses_customer_idx").on(t.customerId)],
+);
+
+export const customerWishlist = pgTable(
+  "customer_wishlist",
+  {
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    productSlug: text("product_slug").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.customerId, t.productSlug] })],
+);
 
 export const orders = pgTable(
   "orders",

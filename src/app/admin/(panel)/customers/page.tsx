@@ -40,8 +40,8 @@ export default async function Customers({ searchParams }: { searchParams: Promis
             <tbody className="divide-y divide-paper-2">
               {rows.map((c) => (
                 <tr key={c.id} className="hover:bg-paper/50">
-                  <td className={tdClass}><Link href={`/admin/customers/${c.id}`} className="font-medium hover:underline">{c.name}</Link></td>
-                  <td className={tdClass} dir="ltr">{formatSaudiMobile(c.phone)}</td>
+                  <td className={tdClass}><Link href={`/admin/customers/${c.id}`} className="font-medium hover:underline">{c.name || "—"}</Link></td>
+                  <td className={tdClass} dir="ltr">{c.phone ? formatSaudiMobile(c.phone) : "—"}</td>
                   <td className={tdClass}>{c.orders}</td>
                   <td className={tdClass}><Money halalas={c.spent} locale="ar" /></td>
                 </tr>
