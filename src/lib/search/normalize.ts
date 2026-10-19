@@ -74,6 +74,11 @@ export const SYNONYMS: string[][] = [
   ["جوال", "هاتف", "موبايل", "ايفون", "phone", "iphone", "mobile"],
   ["كيبل", "كابل", "سلك", "cable"],
   ["سماع", "سماعات", "earbuds", "headphones"],
+  ["مساج", "مدلك", "تدليك", "massage", "massager"],
+  ["راس", "رأس", "فروه", "scalp", "head"],
+  ["محفظه", "محافظ", "بوك", "wallet", "cardholder"],
+  ["بطاقه", "بطاقات", "كروت", "card", "cards"],
+  ["تتبع", "تعقب", "tracker", "tracking", "airtag"],
   ["ساع", "ساعه", "watch"],
 ];
 

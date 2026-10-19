@@ -71,6 +71,10 @@ describe("uploads", () => {
     expect(() => validateUpload(new TextEncoder().encode("<script>alert(1)</script>"), "image", 1000)).toThrow();
     expect(() => validateUpload(new TextEncoder().encode("%PDF-1.7"), "image", 1000)).toThrow(); // PDF is not an image
     expect(() => validateUpload(new Uint8Array(2000), "document", 1000)).toThrow();
+    const glb = new Uint8Array(20);
+    glb.set(new TextEncoder().encode("glTF"), 0);
+    expect(validateUpload(glb, "model", 1000).ext).toBe("glb");
+    expect(() => validateUpload(new TextEncoder().encode("%PDF-1.7 fake model"), "model", 1000)).toThrow();
   });
 });
 

@@ -58,6 +58,8 @@ export type ProductView = {
   seoDescAr: string | null;
   seoDescEn: string | null;
   keywords: string;
+  /** "builtin:<key>" or .glb URL; null = images only */
+  model3d: string | null;
   category: { slug: string; nameAr: string; nameEn: string } | null;
   media: MediaView[];
   variants: VariantView[];
@@ -140,6 +142,7 @@ async function hydrate(conn: DbOrTx, rows: ProductRow[]): Promise<ProductView[]>
       seoDescAr: p.seoDescAr,
       seoDescEn: p.seoDescEn,
       keywords: p.keywords,
+      model3d: p.model3d,
       category: cat ? { slug: cat.slug, nameAr: cat.nameAr, nameEn: cat.nameEn } : null,
       media: media
         .filter((m) => m.productId === p.id)

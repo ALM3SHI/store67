@@ -23,14 +23,20 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   reporter: [["list"], ["html", { open: "never" }]],
-  use: { baseURL: BASE, trace: "retain-on-failure", screenshot: "only-on-failure", launchOptions: { executablePath } },
+  use: {
+    baseURL: BASE,
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    // Software WebGL so the 3D viewers render the same on CI machines without a GPU
+    launchOptions: { executablePath, args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] },
+  },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1366, height: 860 } }, testIgnore: /mobile\.spec\.ts/ },
     { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /mobile\.spec\.ts/ },
   ],
   webServer: {
     // Fresh database for every run, seeded, with a known admin — then the production server.
-    command: `rm -rf .data/e2e .data/e2e-storage && npm run db:setup && npm run admin:create -- e2e@store76.test "E2E Owner" owner && npx next start -p ${PORT}`,
+    command: `node -e "for (const d of ['.data/e2e','.data/e2e-storage']) require('fs').rmSync(d,{recursive:true,force:true})" && npm run db:setup && npm run admin:create -- e2e@store76.test "E2E Owner" owner && npx next start -p ${PORT}`,
     url: `${BASE}/api/health`,
     timeout: 180_000,
     reuseExistingServer: false,

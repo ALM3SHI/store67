@@ -7,6 +7,9 @@ import { saveProduct } from "@/features/admin/product-actions";
 import { SubmitButton, FormMessage, type ActionState } from "./ui";
 import type { ProductInput } from "@/schemas/product";
 import { cn } from "@/lib/utils";
+import { Product3D } from "@/components/product/product-3d";
+import { I18nProvider } from "@/components/i18n-provider";
+import ar from "@/i18n/ar";
 
 type Row = Record<string, string | boolean | number | null | undefined>;
 type ColDef = { key: string; label: string; type?: "text" | "textarea" | "check"; dir?: "ltr" | "rtl"; width?: string };
@@ -107,6 +110,29 @@ export function ProductEditor({ initial, categories }: { initial: ProductInput &
   };
 
   const unverified = (p.specs ?? []).some((s) => !s.verified);
+  const modelRef = useRef<HTMLInputElement>(null);
+  const [modelBusy, setModelBusy] = useState(false);
+  const [modelErr, setModelErr] = useState<string | null>(null);
+  const uploadModel = async (files: FileList | null) => {
+    const f = files?.[0];
+    if (!f) return;
+    setModelBusy(true);
+    setModelErr(null);
+    const fd = new FormData();
+    fd.append("file", f);
+    const res = await fetch("/api/admin/uploads?kind=model", { method: "POST", body: fd });
+    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+    if (res.ok && data.url) set("model3d", data.url);
+    else setModelErr(data.error === "too_large" ? "الملف أكبر من 15MB." : "الملف يجب أن يكون نموذج glTF ثنائي (.glb).");
+    setModelBusy(false);
+    if (modelRef.current) modelRef.current.value = "";
+  };
+  const model = p.model3d ?? "";
+  const builtinOptions = [
+    { v: "builtin:magcharge", l: "شاحن مغناطيسي (مدمج)" },
+    { v: "builtin:scalp-massager", l: "مدلّك الرأس (مدمج)" },
+    { v: "builtin:smart-wallet", l: "المحفظة الذكية (مدمج)" },
+  ];
 
   return (
     <form action={action} className="space-y-6" data-testid="product-editor">
@@ -224,6 +250,29 @@ export function ProductEditor({ initial, categories }: { initial: ProductInput &
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="space-y-3 rounded-2xl border border-paper-2 bg-white p-5" data-testid="model-3d-section">
+            <h2 className="font-semibold">المجسم ثلاثي الأبعاد</h2>
+            <p className="text-xs text-metal-500">يظهر بدل الصور في الصفحة الرئيسية وصفحة المنتج. اختر نموذجًا مدمجًا أو ارفع ملف .glb للمنتج الحقيقي (من المصنّع أو مصمم ثلاثي الأبعاد).</p>
+            <select value={model.startsWith("builtin:") || model === "" ? model : "custom"} onChange={(e) => e.target.value !== "custom" && set("model3d", e.target.value)} className="field" aria-label="المجسم">
+              <option value="">بدون مجسم (صور فقط)</option>
+              {builtinOptions.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+              {model && !model.startsWith("builtin:") ? <option value="custom">ملف مرفوع: {model.split("/").pop()}</option> : null}
+            </select>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => modelRef.current?.click()} className="btn btn-ghost btn-sm" disabled={modelBusy}>
+                {modelBusy ? <LoaderCircle size={15} className="animate-spin" /> : null} رفع ملف .glb
+              </button>
+              <input ref={modelRef} type="file" accept=".glb,model/gltf-binary" className="hidden" onChange={(e) => uploadModel(e.target.files)} />
+              {modelErr ? <span className="text-sm text-danger">{modelErr}</span> : null}
+            </div>
+            {model ? (
+              <I18nProvider locale="ar" dict={ar}>
+                <Product3D key={model} source={model} poster={media[0]?.url ?? null} alt={p.nameAr ?? ""} className="aspect-square rounded-xl bg-paper" />
+              </I18nProvider>
+            ) : null}
+            {state?.errors?.model3d ? <p className="text-xs text-danger">{state.errors.model3d}</p> : null}
           </section>
 
           <section className="space-y-4 rounded-2xl border border-paper-2 bg-white p-5">

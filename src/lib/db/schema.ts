@@ -201,6 +201,8 @@ export const products = pgTable(
     seoDescEn: text("seo_desc_en"),
     /** Extra search terms / synonyms, space or comma separated */
     keywords: text("keywords").notNull().default(""),
+    /** 3D model: "builtin:<key>" (procedural model shipped with the store) or a URL to a .glb file */
+    model3d: text("model3d"),
     ...timestamps,
   },
   (t) => [index("products_status_idx").on(t.status)],

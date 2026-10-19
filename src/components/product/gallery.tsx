@@ -1,14 +1,28 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, ZoomIn, Rotate3d, Images } from "lucide-react";
+import { Product3D } from "./product-3d";
 import { useI18n, format } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 import type { MediaView } from "@/services/catalog";
 
-export function Gallery({ media, productName, showPlaceholderNote }: { media: MediaView[]; productName: string; showPlaceholderNote: boolean }) {
+export function Gallery({
+  media,
+  productName,
+  showPlaceholderNote,
+  model3d = null,
+  poster = null,
+}: {
+  media: MediaView[];
+  productName: string;
+  showPlaceholderNote: boolean;
+  model3d?: string | null;
+  poster?: string | null;
+}) {
   const { t, locale } = useI18n();
   const images = media.filter((m) => m.kind === "image");
+  const [mode, setMode] = useState<"3d" | "images">(model3d ? "3d" : "images");
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
@@ -26,7 +40,7 @@ export function Gallery({ media, productName, showPlaceholderNote }: { media: Me
     );
     el.querySelectorAll("[data-i]").forEach((n) => io.observe(n));
     return () => io.disconnect();
-  }, [images.length]);
+  }, [images.length, mode]);
 
   const goTo = useCallback((i: number) => {
     const el = trackRef.current?.querySelector<HTMLElement>(`[data-i="${i}"]`);
@@ -34,11 +48,35 @@ export function Gallery({ media, productName, showPlaceholderNote }: { media: Me
     setIndex(i);
   }, []);
 
-  if (images.length === 0) return <div className="aspect-square rounded-[var(--radius-panel)] bg-ink" />;
+  if (images.length === 0 && !model3d) return <div className="aspect-square rounded-[var(--radius-panel)] bg-ink" />;
   const alt = (m: MediaView) => (locale === "ar" ? m.altAr : m.altEn) || productName;
+
+  const tabs = model3d && images.length ? (
+    <div className="flex gap-1 self-start rounded-full bg-paper-2 p-1 text-sm" role="tablist" aria-label={t.product.gallery}>
+      <button role="tab" aria-selected={mode === "3d"} onClick={() => setMode("3d")} className={cn("inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5", mode === "3d" ? "bg-ink text-white" : "text-metal-700")} data-testid="tab-3d">
+        <Rotate3d size={15} aria-hidden /> {locale === "ar" ? "مجسم 3D" : "3D model"}
+      </button>
+      <button role="tab" aria-selected={mode === "images"} onClick={() => setMode("images")} className={cn("inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5", mode === "images" ? "bg-ink text-white" : "text-metal-700")} data-testid="tab-images">
+        <Images size={15} aria-hidden /> {locale === "ar" ? "الصور" : "Photos"}
+      </button>
+    </div>
+  ) : null;
+
+  if (model3d && mode === "3d") {
+    return (
+      <div className="flex flex-col gap-3">
+        {tabs}
+        <div className="relative aspect-square overflow-hidden rounded-[var(--radius-panel)] bg-[radial-gradient(70%_70%_at_50%_42%,#1d2635,#0a0e14)]">
+          <Product3D source={model3d} poster={poster} alt={productName} tone="dark" priority sizes="(min-width: 1024px) 560px, 100vw" className="absolute inset-0" />
+          {showPlaceholderNote ? <span className="pointer-events-none absolute start-3 top-3 rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-metal-100">{locale === "ar" ? "مجسم توضيحي" : "Illustrative model"}</span> : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3" aria-roledescription="carousel" aria-label={t.product.gallery}>
+      {tabs}
       <div className="relative">
         <div ref={trackRef} className="flex snap-x snap-mandatory overflow-x-auto rounded-[var(--radius-panel)] bg-ink [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {images.map((m, i) => (

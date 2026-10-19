@@ -16,6 +16,7 @@ export type StoredFile = { key: string; url: string | null };
 const ALLOWED = {
   image: { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" } as Record<string, string>,
   document: { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png" } as Record<string, string>,
+  model: { "model/gltf-binary": "glb" } as Record<string, string>,
 };
 
 /** Sniff the real type from magic bytes — never trust the browser's MIME type. */
@@ -26,6 +27,7 @@ export function sniffMime(buf: Uint8Array): string | null {
   if (b.length >= 12 && String.fromCharCode(...b.slice(0, 4)) === "RIFF" && String.fromCharCode(...b.slice(8, 12)) === "WEBP") return "image/webp";
   if (b.length >= 12 && String.fromCharCode(...b.slice(4, 8)) === "ftyp" && /avi[fs]/.test(String.fromCharCode(...b.slice(8, 12)))) return "image/avif";
   if (b.length >= 5 && String.fromCharCode(...b.slice(0, 5)) === "%PDF-") return "application/pdf";
+  if (b.length >= 12 && String.fromCharCode(...b.slice(0, 4)) === "glTF") return "model/gltf-binary";
   return null;
 }
 
@@ -35,7 +37,7 @@ export class UploadError extends Error {
   }
 }
 
-export function validateUpload(buf: Uint8Array, kind: "image" | "document", maxBytes: number) {
+export function validateUpload(buf: Uint8Array, kind: "image" | "document" | "model", maxBytes: number) {
   if (buf.byteLength > maxBytes) throw new UploadError("too_large");
   const mime = sniffMime(buf);
   if (!mime || !ALLOWED[kind][mime]) throw new UploadError("bad_type");
@@ -93,4 +95,4 @@ export async function deleteFile(visibility: Visibility, key: string) {
   await fs.rm(localPath(visibility, key), { force: true });
 }
 
-export const MIME_BY_EXT: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp", avif: "image/avif", pdf: "application/pdf" };
+export const MIME_BY_EXT: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp", avif: "image/avif", pdf: "application/pdf", glb: "model/gltf-binary" };

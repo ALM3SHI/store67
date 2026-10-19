@@ -62,6 +62,7 @@ export default async function EditProduct({ params, searchParams }: { params: Pr
           seoDescAr: p.seoDescAr ?? "",
           seoDescEn: p.seoDescEn ?? "",
           keywords: p.keywords,
+          model3d: p.model3d ?? "",
           variants: variants.map((v) => ({
             id: v.id,
             sku: v.sku,

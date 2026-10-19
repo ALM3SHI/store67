@@ -66,6 +66,12 @@ export const productInputSchema = z.object({
   seoDescAr: t(170),
   seoDescEn: t(170),
   keywords: t(500),
+  model3d: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((v) => v === "" || /^builtin:[a-z0-9-]+$/.test(v) || /^(\/api\/media\/|https:\/\/).+\.glb$/i.test(v), "المجسم: نموذج مدمج أو رابط ملف .glb")
+    .default(""),
   variants: z.array(variantInputSchema).min(1, "أضف إصدارًا واحدًا على الأقل (السعر والمخزون)").max(50),
   media: z.array(mediaInputSchema).max(30).default([]),
 });

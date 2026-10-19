@@ -10,6 +10,8 @@ import { formatSAR } from "@/lib/money";
 import { BuyBox, type BuyProduct } from "./buy-box";
 import { QuickBuy } from "./add-button";
 import { PriceTag } from "@/components/ui/price";
+import { Product3D } from "./product-3d";
+import { posterFor } from "@/features/product/view";
 
 const L = (locale: Locale, ar: string, en: string) => (locale === "ar" ? ar || en : en || ar);
 
@@ -57,8 +59,12 @@ export function HeroStage({ product, buy, locale, heroImage }: { product: Produc
             <span className="h-full w-full" />
           </div>
           <div aria-hidden className="absolute inset-[14%] rounded-full bg-[radial-gradient(circle,rgba(88,216,239,.22),transparent_65%)] blur-2xl" />
-          <div className="absolute inset-[6%] animate-snap-in">
-            <Image src={heroImage} alt={L(locale, product.media[0]?.altAr ?? "", product.media[0]?.altEn ?? "") || name} fill priority fetchPriority="high" sizes="(min-width: 768px) 520px, 88vw" className="object-contain drop-shadow-[0_40px_60px_rgba(0,0,0,.55)]" />
+          <div className="absolute inset-[2%] animate-snap-in">
+            {product.model3d ? (
+              <Product3D source={product.model3d} poster={posterFor(product)} alt={name} tone="dark" priority sizes="(min-width: 768px) 560px, 88vw" className="h-full w-full" />
+            ) : (
+              <Image src={heroImage} alt={L(locale, product.media[0]?.altAr ?? "", product.media[0]?.altEn ?? "") || name} fill priority fetchPriority="high" sizes="(min-width: 768px) 520px, 88vw" className="object-contain drop-shadow-[0_40px_60px_rgba(0,0,0,.55)]" />
+            )}
           </div>
         </div>
       </div>
@@ -320,7 +326,9 @@ export function FinalCta({ product, buy, t, locale }: { product: ProductView; bu
           </p>
           <QuickBuy product={buy} />
         </div>
-        {img ? (
+        {product.model3d ? (
+          <Product3D source={product.model3d} poster={posterFor(product)} alt={L(locale, product.nameAr, product.nameEn)} tone="dark" azimuth={2.2} elevation={0.45} showHint={false} sizes="384px" className="mx-auto aspect-square w-full max-w-sm" />
+        ) : img ? (
           <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-[28px]">
             <Image src={img.url} alt={L(locale, img.altAr, img.altEn)} fill sizes="384px" className="object-cover" loading="lazy" />
           </div>
@@ -330,3 +338,53 @@ export function FinalCta({ product, buy, t, locale }: { product: ProductView; bu
   );
 }
 
+
+/* ─────────────────────────── The collection — every product as an interactive 3D model */
+export function CollectionSection({ products, buys, t, locale }: { products: ProductView[]; buys: BuyProduct[]; t: Dictionary; locale: Locale }) {
+  if (products.length < 2) return null;
+  return (
+    <section className="container-x py-16 md:py-24" aria-labelledby="collection">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 id="collection" className="text-[1.65rem] font-semibold md:text-[2.1rem]">{locale === "ar" ? "المجموعة" : "The collection"}</h2>
+          <p className="mt-1 text-metal-700">{locale === "ar" ? "حرّك كل منتج بإصبعك وشاهده من كل زاوية." : "Turn each product with your finger and see it from every side."}</p>
+        </div>
+        <Link href={`/${locale}/products`} className="text-[0.95rem] font-medium text-volt underline-offset-4 hover:underline">
+          {t.search.viewAll}
+        </Link>
+      </div>
+      <ul className="mt-10 grid gap-6 md:grid-cols-3">
+        {products.map((p, i) => {
+          const v = [...p.variants].sort((a, b) => a.priceHalalas - b.priceHalalas)[0]!;
+          const name = L(locale, p.nameAr, p.nameEn);
+          return (
+            <li key={p.id} className="flex flex-col rounded-[var(--radius-panel)] border border-paper-2 bg-porcelain p-3" data-testid="collection-item">
+              <div className="relative aspect-square overflow-hidden rounded-[14px] bg-[radial-gradient(70%_60%_at_50%_40%,#ffffff,#ebe8e2)]">
+                {p.model3d ? (
+                  <Product3D source={p.model3d} poster={posterFor(p)} alt={name} tone="light" sizes="(min-width: 768px) 33vw, 100vw" className="absolute inset-0" />
+                ) : p.media[0] ? (
+                  <Image src={p.media[0].url} alt={L(locale, p.media[0].altAr, p.media[0].altEn) || name} fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover" />
+                ) : null}
+              </div>
+              <div className="flex flex-1 flex-col px-2 pb-2 pt-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-lg font-semibold">
+                    <Link href={`/${locale}/products/${p.slug}`} className="hover:underline hover:underline-offset-4">{name}</Link>
+                  </h3>
+                  <PriceTag price={v.priceHalalas} compareAt={v.compareAtHalalas} locale={locale} size="sm" wasLabel={t.product.priceWas} />
+                </div>
+                <p className="mt-1 text-sm text-metal-700">{L(locale, p.taglineAr, p.taglineEn)}</p>
+                <div className="mt-auto flex items-center gap-3 pt-4">
+                  <QuickBuy product={buys[i]!} variant="add" />
+                  <Link href={`/${locale}/products/${p.slug}`} className="text-sm font-medium text-metal-700 hover:text-ink">
+                    {locale === "ar" ? "التفاصيل" : "Details"}
+                  </Link>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}

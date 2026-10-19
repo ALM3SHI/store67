@@ -9,18 +9,31 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const MAX_IMAGE = 8 * 1024 * 1024;
+const MAX_MODEL = 15 * 1024 * 1024;
 
-/** Product image upload: type sniffed from bytes, re-encoded to WebP (strips EXIF/GPS), max 2000px. */
+/**
+ * Product media upload.
+ *  - images: type sniffed from bytes, re-encoded to WebP (strips EXIF/GPS), max 2000px
+ *  - 3D models (?kind=model): binary glTF (.glb) only, verified by its magic header
+ */
 export async function POST(req: NextRequest) {
   if (!isSameOrigin(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const admin = await adminFromRequest("products.manage");
   if (!admin) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const kind = req.nextUrl.searchParams.get("kind") === "model" ? "model" : "image";
+  const max = kind === "model" ? MAX_MODEL : MAX_IMAGE;
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "no_file" }, { status: 400 });
-  if (file.size > MAX_IMAGE) return NextResponse.json({ error: "too_large" }, { status: 413 });
+  if (file.size > max) return NextResponse.json({ error: "too_large" }, { status: 413 });
   try {
     const buf = new Uint8Array(await file.arrayBuffer());
+    if (kind === "model") {
+      validateUpload(buf, "model", max);
+      const stored = await putFile("public", "models", "glb", buf, "model/gltf-binary");
+      await audit({ actorId: admin.userId, actorEmail: admin.email, action: "media.upload_model", entity: "media", entityId: stored.key });
+      return NextResponse.json({ url: stored.url });
+    }
     validateUpload(buf, "image", MAX_IMAGE);
     const img = sharp(buf, { failOn: "error" }).rotate().resize({ width: 2000, height: 2000, fit: "inside", withoutEnlargement: true });
     const out = await img.webp({ quality: 84 }).toBuffer({ resolveWithObject: true });
@@ -28,7 +41,7 @@ export async function POST(req: NextRequest) {
     await audit({ actorId: admin.userId, actorEmail: admin.email, action: "media.upload", entity: "media", entityId: stored.key });
     return NextResponse.json({ url: stored.url, width: out.info.width, height: out.info.height });
   } catch (e) {
-    const code = e instanceof UploadError ? e.code : "invalid_image";
+    const code = e instanceof UploadError ? e.code : kind === "model" ? "invalid_model" : "invalid_image";
     return NextResponse.json({ error: code }, { status: 400 });
   }
 }

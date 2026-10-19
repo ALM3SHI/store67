@@ -1,4 +1,6 @@
 import "server-only";
+import os from "node:os";
+import path from "node:path";
 
 /**
  * Server-side environment access. Secrets are read only here and never
@@ -13,7 +15,12 @@ export const env = {
   appEnv: (str("APP_ENV") ?? "development") as "development" | "staging" | "production",
   appUrl: (str("APP_URL") ?? "http://localhost:3000").replace(/\/$/, ""),
   databaseUrl: str("DATABASE_URL"),
-  pgliteDir: str("PGLITE_DIR") ?? "./.data/pglite",
+  /**
+   * Embedded dev database location. Kept OUTSIDE the project by default: files
+   * written inside the project make `next dev` reload the page on every query,
+   * and cloud-synced folders (OneDrive, iCloud) shouldn't sync a live database.
+   */
+  pgliteDir: (str("PGLITE_DIR") ?? path.join(os.homedir(), ".store76", "pglite")).replace(/^~(?=$|[\\/])/, os.homedir()),
   sessionSecret: str("SESSION_SECRET"),
   cronSecret: str("CRON_SECRET"),
 

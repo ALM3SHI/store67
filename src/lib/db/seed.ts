@@ -7,6 +7,7 @@
 import { eq } from "drizzle-orm";
 import { schema, type Db } from "@/lib/db";
 import { settingSchemas } from "@/services/settings";
+import { seedMoreProducts } from "./seed-products";
 
 const IMG = "/products/magcharge-76";
 
@@ -101,6 +102,7 @@ export async function seedDatabase(db: Db, log: (m: string) => void = () => {}) 
         seoDescAr: "شاحن لاسلكي مغناطيسي نحيف يثبت خلف الجوال. اطلبه من STORE 76 مع توصيل داخل المملكة.",
         seoDescEn: "A slim magnetic wireless charger that snaps to your phone. Order from STORE 76 with delivery across Saudi Arabia.",
         keywords: "شاحن لاسلكي مغناطيسي ماغ سيف magsafe wireless charger magnetic شاحن جوال ايفون",
+        model3d: "builtin:magcharge",
       })
       .returning();
 
@@ -121,6 +123,7 @@ export async function seedDatabase(db: Db, log: (m: string) => void = () => {}) 
 
     const media = [
       ["hero", "MagCharge 76 على منصة داكنة مع حلقة الضوء", "MagCharge 76 on a dark stage with its light ring"],
+      ["angle", "MagCharge 76 من زاوية جانبية", "MagCharge 76 from an angle"],
       ["on-phone", "MagCharge 76 مثبت خلف جوال", "MagCharge 76 attached to the back of a phone"],
       ["top", "منظر علوي لشاحن MagCharge 76", "Top view of MagCharge 76"],
       ["side", "منظر جانبي يوضح نحافة MagCharge 76", "Side view showing the slim MagCharge 76"],
@@ -139,7 +142,13 @@ export async function seedDatabase(db: Db, log: (m: string) => void = () => {}) 
       })),
     );
     log("✓ product MagCharge 76");
+  } else if (!existing.model3d) {
+    // Upgrade installs seeded before 3D models existed (never overrides an admin choice)
+    await db.update(schema.products).set({ model3d: "builtin:magcharge" }).where(eq(schema.products.id, existing.id));
   }
+
+  // ── More products (added in v2)
+  await seedMoreProducts(db, log);
 
   // ── Policy pages (drafts the owner must review)
   const pages = [

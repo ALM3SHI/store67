@@ -8,7 +8,8 @@ import { listCategories } from "@/services/catalog";
 import { getShell } from "@/services/storefront";
 import { PriceTag } from "@/components/ui/price";
 import { QuickBuy } from "@/components/product/add-button";
-import { toBuyProduct } from "@/features/product/view";
+import { toBuyProduct, posterFor } from "@/features/product/view";
+import { Product3D } from "@/components/product/product-3d";
 import { cn } from "@/lib/utils";
 
 type Props = { params: Promise<{ locale: string }>; searchParams: Promise<Record<string, string | undefined>> };
@@ -100,10 +101,16 @@ export default async function Catalog({ params, searchParams }: Props) {
             const name = locale === "ar" ? p.nameAr : p.nameEn;
             return (
               <li key={p.id} className="group flex flex-col" data-testid="catalog-item">
-                <Link href={`/${locale}/products/${p.slug}`} className="relative block aspect-square overflow-hidden rounded-[var(--radius-panel)] bg-ink">
-                  {img ? <Image src={img.url} alt={(locale === "ar" ? img.altAr : img.altEn) || name} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" priority={i < 3} className="object-cover transition-transform duration-700 group-hover:scale-[1.03]" /> : null}
-                  {!p.inStock ? <span className="absolute start-3 top-3 rounded-full bg-porcelain px-3 py-1 text-xs font-medium text-danger">{t.product.outOfStock}</span> : null}
-                </Link>
+                <div className="relative aspect-square overflow-hidden rounded-[var(--radius-panel)] bg-[radial-gradient(70%_60%_at_50%_40%,#ffffff,#ebe8e2)]">
+                  {p.model3d ? (
+                    <Product3D source={p.model3d} poster={posterFor(p)} alt={name} tone="light" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="absolute inset-0" />
+                  ) : img ? (
+                    <Link href={`/${locale}/products/${p.slug}`} className="absolute inset-0">
+                      <Image src={img.url} alt={(locale === "ar" ? img.altAr : img.altEn) || name} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" priority={i < 3} className="object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+                    </Link>
+                  ) : null}
+                  {!p.inStock ? <span className="pointer-events-none absolute start-3 top-3 rounded-full bg-porcelain px-3 py-1 text-xs font-medium text-danger">{t.product.outOfStock}</span> : null}
+                </div>
                 <div className="mt-4 flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold">

@@ -77,6 +77,7 @@ export async function saveProduct(_: ActionState, formData: FormData): Promise<A
     seoDescAr: p.seoDescAr || null,
     seoDescEn: p.seoDescEn || null,
     keywords: p.keywords,
+    model3d: p.model3d || null,
     updatedAt: new Date(),
   };
 

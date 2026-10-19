@@ -9,7 +9,7 @@ import { BenefitsSection, StepsSection, SpecsSection, PromiseStrip, FaqSection, 
 import { Gallery } from "@/components/product/gallery";
 import { BuyBox } from "@/components/product/buy-box";
 import { ViewItem } from "@/components/product/view-item";
-import { toBuyProduct } from "@/features/product/view";
+import { toBuyProduct, posterFor } from "@/features/product/view";
 import { JsonLd, breadcrumbJsonLd, productJsonLd, absUrl } from "@/lib/seo";
 import { env } from "@/config/env";
 
@@ -70,7 +70,7 @@ export default async function ProductPage({ params }: Props) {
 
       <section className="container-x grid gap-10 pb-16 pt-6 md:grid-cols-[1.1fr_1fr] md:gap-14 md:pb-20" aria-labelledby="product-title">
         <div className="md:sticky md:top-24 md:self-start">
-          <Gallery media={product.media} productName={name} showPlaceholderNote />
+          <Gallery media={product.media} productName={name} showPlaceholderNote model3d={product.model3d} poster={posterFor(product)} />
         </div>
         <div className="space-y-6">
           <div>

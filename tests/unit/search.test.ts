@@ -5,7 +5,19 @@ import { buildIndex, search } from "@/lib/search/rank";
 const index = buildIndex([
   { id: "mc", name: ["MagCharge 76", "شاحن لاسلكي مغناطيسي"], keywords: ["magsafe wireless charger"], body: ["يثبت خلف الجوال"] },
   { id: "cable", name: ["Braided Cable", "كيبل مضفّر"], keywords: ["usb-c"], body: [] },
+  { id: "massager", name: ["Scalp Massager 76", "مدلّك الرأس 76"], keywords: ["مساج الراس مدلك الرأس scalp massager"], body: [] },
+  { id: "wallet", name: ["Smart Wallet 76", "المحفظة الذكية 76"], keywords: ["محفظة ذكية محفظة بطاقات smart wallet"], body: [] },
 ]);
+
+describe("new products", () => {
+  it("finds the massager and the wallet in Arabic and English", () => {
+    expect(search(index, "مساج الراس")[0]?.id).toBe("massager");
+    expect(search(index, "تدليك")[0]?.id).toBe("massager");
+    expect(search(index, "head massager")[0]?.id).toBe("massager");
+    expect(search(index, "محفظه")[0]?.id).toBe("wallet");
+    expect(search(index, "wallet")[0]?.id).toBe("wallet");
+  });
+});
 
 describe("arabic normalisation", () => {
   it("unifies hamza, ta marbuta, alef maqsura and removes diacritics", () => {
