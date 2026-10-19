@@ -3,13 +3,14 @@ import { useState } from "react";
 import { formatSAR } from "@/lib/money";
 
 /** Single-series daily revenue bars with a per-bar hover tooltip and a table fallback. */
-export function SalesChart({ days }: { days: { day: string; revenue: number; n: number }[] }) {
+export function SalesChart({ days, label = "المبيعات اليومية لآخر ٣٠ يومًا" }: { days: { day: string; revenue: number; n: number }[]; label?: string }) {
   const [hover, setHover] = useState<number | null>(null);
   const [table, setTable] = useState(false);
   const max = Math.max(...days.map((d) => d.revenue), 1);
   const W = 600;
   const H = 180;
-  const bw = W / days.length;
+  const bw = W / Math.max(1, days.length);
+  const barW = Math.min(36, Math.max(1, bw - Math.min(4, bw / 3)));
   const ticks = [0, 0.5, 1].map((f) => Math.round(max * f));
   const h = hover !== null ? days[hover] : null;
   return (
@@ -24,7 +25,7 @@ export function SalesChart({ days }: { days: { day: string; revenue: number; n: 
             <tbody>{days.filter((d) => d.n).map((d) => <tr key={d.day} className="border-t border-paper-2"><td dir="ltr" className="py-1 text-start">{d.day}</td><td>{d.n}</td><td>{formatSAR(d.revenue, "ar")}</td></tr>)}</tbody></table>
         </div>
       ) : (
-        <svg viewBox={`0 0 ${W} ${H + 22}`} className="w-full" role="img" aria-label="المبيعات اليومية لآخر ٣٠ يومًا" style={{ direction: "ltr" }}>
+        <svg viewBox={`0 0 ${W} ${H + 22}`} className="w-full" role="img" aria-label={label} style={{ direction: "ltr" }}>
           {ticks.map((t) => {
             const y = H - (t / max) * H;
             return (
@@ -39,11 +40,11 @@ export function SalesChart({ days }: { days: { day: string; revenue: number; n: 
             return (
               <g key={d.day} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
                 <rect x={i * bw} y={0} width={bw} height={H} fill="transparent" />
-                {bh ? <rect x={i * bw + 2} y={H - bh} width={bw - 4} height={bh} rx={3} fill={hover === i ? "var(--color-volt-strong)" : "var(--color-volt)"} /> : null}
+                {bh ? <rect x={i * bw + (bw - barW) / 2} y={H - bh} width={barW} height={bh} rx={Math.min(3, bw / 4)} fill={hover === i ? "var(--color-volt-strong)" : "var(--color-volt)"} /> : null}
               </g>
             );
           })}
-          {[0, 14, 29].map((i) => (
+          {[...new Set([0, Math.floor((days.length - 1) / 2), days.length - 1])].filter((i) => i >= 0).map((i) => (
             <text key={i} x={i * bw + bw / 2} y={H + 16} fontSize={10} textAnchor="middle" fill="var(--color-metal-500)">{days[i]!.day.slice(5)}</text>
           ))}
         </svg>

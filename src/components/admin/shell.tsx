@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Package, Receipt, Users, TicketPercent, Settings, FileBadge, ScrollText, LogOut, Menu, X, Star, FileText, UserCog, ExternalLink, FolderTree, TriangleAlert, ShieldCheck, Undo2 } from "lucide-react";
+import { LayoutDashboard, Package, Receipt, Users, TicketPercent, Settings, FileBadge, ScrollText, LogOut, Menu, X, Star, FileText, UserCog, ExternalLink, FolderTree, TriangleAlert, ShieldCheck, Undo2, ChartColumn } from "lucide-react";
 import { LogoMark } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 import type { Permission } from "@/lib/auth/permissions";
@@ -11,6 +11,7 @@ const NAV: { href: string; label: string; icon: typeof Package; perm: Permission
   { href: "/admin", label: "نظرة عامة", icon: LayoutDashboard, perm: "dashboard.view" },
   { href: "/admin/orders", label: "الطلبات", icon: Receipt, perm: "orders.view" },
   { href: "/admin/returns", label: "الاسترجاع والاستبدال", icon: Undo2, perm: "orders.view" },
+  { href: "/admin/reports", label: "التقارير", icon: ChartColumn, perm: "dashboard.view" },
   { href: "/admin/products", label: "المنتجات", icon: Package, perm: "products.manage" },
   { href: "/admin/categories", label: "التصنيفات", icon: FolderTree, perm: "products.manage" },
   { href: "/admin/customers", label: "العملاء", icon: Users, perm: "customers.view" },

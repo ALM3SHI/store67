@@ -246,6 +246,8 @@ export async function placeOrder(raw: unknown, opts: { db?: DbOrTx; now?: Date; 
     return o!;
   });
 
+  // Stock was reserved for this order; tell the team if anything reached its alert level.
+  await runAfterResponse(async () => void (await (await import("@/services/low-stock")).sendLowStockAlerts(opts.db)));
   if (isCod) {
     await runAfterResponse(() => notifyOrder(order.id, "order_confirmed", { db: opts.db }));
     return { orderNumber: order.number, accessToken: token, redirectUrl: orderUrl(order.locale, order.number, token), totalHalalas: order.totalHalalas };

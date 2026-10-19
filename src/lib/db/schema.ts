@@ -269,6 +269,8 @@ export const productVariants = pgTable(
     stock: integer("stock").notNull().default(0),
     trackInventory: boolean("track_inventory").notNull().default(true),
     lowStockThreshold: integer("low_stock_threshold").notNull().default(5),
+    /** Set when the team was told stock is low; cleared once it is restocked */
+    lowStockAlertedAt: timestamp("low_stock_alerted_at", { withTimezone: true }),
     weightGrams: integer("weight_grams"),
     lengthMm: integer("length_mm"),
     widthMm: integer("width_mm"),

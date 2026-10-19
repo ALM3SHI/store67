@@ -218,4 +218,15 @@ test.describe("store features", () => {
     await page.getByTestId("promotions").locator("details").filter({ hasText: "باقة العناية والمحفظة" }).getByRole("button", { name: "حذف" }).click();
     await expect(page.getByTestId("promotions").locator("details").filter({ hasText: "باقة العناية والمحفظة" })).toHaveCount(0);
   });
+
+  test("admin: sales report shows confirmed orders for the chosen period", async ({ page }) => {
+    await createPaidOrder(page, "0553338877");
+    await adminLogin(page);
+    await page.goto("/admin/reports?preset=7");
+    await expect(page.getByTestId("report-kpis")).toContainText("صافي المبيعات");
+    await expect(page.getByTestId("report-top")).toBeVisible();
+    await page.getByRole("link", { name: "الشهر الماضي" }).click();
+    await expect(page).toHaveURL(/preset=last_month/);
+    await expect(page.getByTestId("report-kpis")).toBeVisible();
+  });
 });

@@ -140,6 +140,8 @@ export const notificationSettingsSchema = z.object({
   newOrderAlerts: z.boolean().default(true),
   /** Server errors → admin email + Telegram (at most once per error per hour) */
   errorAlerts: z.boolean().default(true),
+  /** Stock at or below a variant's alert level → one admin email + Telegram until restocked */
+  lowStockAlerts: z.boolean().default(true),
 });
 
 export const settingSchemas = {

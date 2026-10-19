@@ -57,6 +57,13 @@
       "when": 1792441577638,
       "tag": "0007_promotions",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792442019488,
+      "tag": "0008_low_stock_alerts",
+      "breakpoints": true
     }
   ]
 }

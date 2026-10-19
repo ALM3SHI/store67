@@ -4,6 +4,7 @@ import { safeEqual } from "@/lib/crypto";
 import { expireStaleOrders } from "@/services/orders";
 import { reportError } from "@/services/monitoring";
 import { sendBackInStockAlerts } from "@/services/stock-alerts";
+import { sendLowStockAlerts } from "@/services/low-stock";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,8 @@ export async function GET(req: NextRequest) {
     const n = await expireStaleOrders();
     // Released stock may make waiting customers' products available again.
     const alerts = await sendBackInStockAlerts();
-    return NextResponse.json({ expired: n, stockAlerts: alerts });
+    const lowStock = await sendLowStockAlerts();
+    return NextResponse.json({ expired: n, stockAlerts: alerts, lowStock });
   } catch (e) {
     await reportError("cron", e, { path: "cron: expire-orders" });
     return NextResponse.json({ error: "failed" }, { status: 500 });
