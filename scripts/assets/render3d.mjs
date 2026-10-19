@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const tmp = path.join(root, ".data", "render3d");
+const tmp = path.join((await import("node:os")).tmpdir(), "store76-render3d");
 fs.mkdirSync(tmp, { recursive: true });
 await build({ entryPoints: [path.join(root, "scripts/assets/render-entry.ts")], bundle: true, format: "iife", outfile: path.join(tmp, "render.js"), logLevel: "error" });
 fs.writeFileSync(path.join(tmp, "index.html"), `<!doctype html><html><body style="margin:0;background:transparent"><script src="render.js"></script></body></html>`);

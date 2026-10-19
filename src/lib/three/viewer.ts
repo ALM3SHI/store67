@@ -126,7 +126,7 @@ export async function createViewer(canvas: HTMLCanvasElement, o: ViewerOptions):
   const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 100);
   const target = sphere.center.clone();
   // A little headroom so moving parts (e.g. ejected wallet cards) stay in frame
-  const dist = (sphere.radius / Math.sin(THREE.MathUtils.degToRad(30 / 2))) * 1.2;
+  const dist = (sphere.radius / Math.sin(THREE.MathUtils.degToRad(30 / 2))) * 1.28;
   const setView = (az: number, el: number) => {
     camera.position.set(target.x + dist * Math.cos(el) * Math.sin(az), target.y + dist * Math.sin(el), target.z + dist * Math.cos(el) * Math.cos(az));
     camera.lookAt(target);
