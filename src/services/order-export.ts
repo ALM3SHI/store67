@@ -59,7 +59,7 @@ export async function exportOrdersCsv(f: OrderFilters): Promise<{ csv: string; c
         date.format(o.createdAt).replace(",", ""),
         ar.status[o.status],
         ar.paymentStatus[o.paymentStatus],
-        o.paymentMethod === "cod" ? "عند الاستلام" : o.paymentMethod === "moyasar" ? "إلكتروني" : o.paymentMethod,
+        ({ cod: "عند الاستلام", moyasar: "إلكتروني", tabby: "تابي", tamara: "تمارا", test: "اختبار" } as Record<string, string>)[o.paymentMethod] ?? o.paymentMethod,
         o.customerName,
         formatSaudiMobile(o.phone),
         o.email ?? "",

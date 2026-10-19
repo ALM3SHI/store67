@@ -3,6 +3,8 @@ import { env, serverSecret } from "@/config/env";
 import { hmacSha256, safeEqual } from "@/lib/crypto";
 import { applyPaymentState, findPaymentByRef, type ApplyResult } from "./apply";
 import { moyasarProvider, toState, type MoyasarPayment } from "./moyasar";
+import { tabbyProvider } from "./tabby";
+import { tamaraProvider } from "./tamara";
 import type { ProviderPaymentState } from "./types";
 import { reportError } from "@/services/monitoring";
 
@@ -78,3 +80,44 @@ export async function handleTestWebhook(raw: string, signature: string | null): 
 }
 
 export { toState };
+
+/**
+ * Tabby payment webhook. If TABBY_WEBHOOK_SECRET is set, the custom header
+ * registered with the webhook must match. Either way the payment is re-fetched
+ * from Tabby's API before anything changes.
+ */
+export async function handleTabbyWebhook(body: unknown, headerSecret: string | null): Promise<WebhookOutcome> {
+  if (!tabbyProvider.isConfigured()) return { status: 503, result: "not_configured" };
+  if (env.tabby.webhookSecret && !(headerSecret && safeEqual(headerSecret, env.tabby.webhookSecret))) return { status: 401, result: "unauthorized" };
+  const b = body as { id?: string; status?: string } | null;
+  if (!b?.id || typeof b.id !== "string") return { status: 400, result: "invalid" };
+  const payment = await findPaymentByRef("tabby", b.id);
+  // Unknown yet (e.g. webhook raced the session save): non-200 makes Tabby retry.
+  if (!payment) return { status: 404, result: "ignored" };
+  try {
+    const state = await tabbyProvider.fetchState(b.id);
+    return { status: 200, result: await applyPaymentState({ paymentId: payment.id, state, eventId: `${b.id}:${b.status ?? ""}:${state.status}`, eventType: b.status ?? "tabby", source: "webhook" }) };
+  } catch (e) {
+    await reportError("payment", e, { path: "Tabby webhook: verification fetch" });
+    return { status: 502, result: "invalid" };
+  }
+}
+
+/**
+ * Tamara order webhook. The body is only a hint: the order is fetched (and
+ * authorised when approved) through Tamara's API with our token.
+ */
+export async function handleTamaraWebhook(body: unknown): Promise<WebhookOutcome> {
+  if (!tamaraProvider.isConfigured()) return { status: 503, result: "not_configured" };
+  const b = body as { order_id?: string; event_type?: string } | null;
+  if (!b?.order_id || typeof b.order_id !== "string") return { status: 400, result: "invalid" };
+  const payment = await findPaymentByRef("tamara", b.order_id);
+  if (!payment) return { status: 404, result: "ignored" };
+  try {
+    const state = await tamaraProvider.fetchState(b.order_id);
+    return { status: 200, result: await applyPaymentState({ paymentId: payment.id, state, eventId: `${b.order_id}:${b.event_type ?? ""}:${state.status}`, eventType: b.event_type ?? "tamara", source: "webhook" }) };
+  } catch (e) {
+    await reportError("payment", e, { path: "Tamara webhook: verification fetch" });
+    return { status: 502, result: "invalid" };
+  }
+}

@@ -190,6 +190,8 @@ export function SettingsEditor({ s, webhookUrl, notificationTest }: { s: Setting
           <div className="grid gap-4 md:grid-cols-2">
             <Check label="تفعيل الدفع الإلكتروني (عند ربط Moyasar)" checked={v.onlineEnabled} onChange={(x) => set({ onlineEnabled: x })} />
             <Check label="تفعيل الدفع عند الاستلام" checked={v.codEnabled} onChange={(x) => set({ codEnabled: x })} />
+            <Check label="عرض تابي (عند ربط مفاتيحه)" checked={v.tabbyEnabled} onChange={(x) => set({ tabbyEnabled: x })} />
+            <Check label="عرض تمارا (عند ربط مفتاحه)" checked={v.tamaraEnabled} onChange={(x) => set({ tamaraEnabled: x })} />
             <Money label="رسوم الدفع عند الاستلام (ر.س)" value={v.codFeeHalalas} onChange={(x) => set({ codFeeHalalas: x ?? 0 })} />
             <Money label="أقصى قيمة طلب للدفع عند الاستلام" value={v.codMaxHalalas} nullable onChange={(x) => set({ codMaxHalalas: x })} />
             <div className="md:col-span-2">

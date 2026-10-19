@@ -40,6 +40,7 @@ const STATUS: Record<string, number> = {
   price_changed: 409,
   coupon_invalid: 422,
   payment_unavailable: 422,
+  payment_rejected: 422,
   shipping_unavailable: 422,
   payment_provider_error: 502,
 };

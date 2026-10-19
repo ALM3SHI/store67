@@ -4,6 +4,8 @@ import { getDb, schema, type DbOrTx, type Tx } from "@/lib/db";
 import { addOrderEvent, reReserveStock } from "@/services/orders";
 import type { ProviderPaymentState } from "./types";
 import { notifyOrder } from "@/services/notify";
+import { getOnlineProvider } from "./registry";
+import { reportError } from "@/services/monitoring";
 import { runAfterResponse } from "@/lib/after";
 
 export type ApplyResult = "applied" | "duplicate_event" | "no_change" | "amount_mismatch" | "not_found";
@@ -25,6 +27,8 @@ export async function applyPaymentState(args: {
 }): Promise<ApplyResult> {
   const conn = args.db ?? (await getDb());
   let confirmedOrderId: string | null = null;
+  type Confirmed = { provider: string; providerRef: string | null; providerPaymentId: string | null; amount: number; orderNumber: string };
+  let confirmed: Confirmed | null = null;
   const result = await (conn as Tx).transaction(async (tx): Promise<ApplyResult> => {
     const [payment] = await tx.select().from(schema.payments).where(eq(schema.payments.id, args.paymentId)).for("update");
     if (!payment) return "not_found";
@@ -88,6 +92,7 @@ export async function applyPaymentState(args: {
         .where(eq(schema.orders.id, order.id));
       await addOrderEvent(tx, { orderId: order.id, type: "payment", message: "تم تأكيد الدفع", internal: false });
       confirmedOrderId = order.id;
+      confirmed = { provider: payment.provider, providerRef: payment.providerRef, providerPaymentId: s.providerPaymentId ?? payment.providerPaymentId, amount: payment.amountHalalas, orderNumber: order.number };
       if (wasCancelled || !stockOk) {
         await addOrderEvent(tx, {
           orderId: order.id,
@@ -153,6 +158,20 @@ export async function applyPaymentState(args: {
   if (result === "applied" && confirmedOrderId) {
     const id: string = confirmedOrderId;
     await runAfterResponse(() => notifyOrder(id, "order_confirmed", { db: args.db }));
+    // Providers that need a merchant confirmation (Tabby capture) get it once, after commit.
+    const c = confirmed as Confirmed | null;
+    const provider = c ? getOnlineProvider(c.provider) : null;
+    if (c && provider?.afterPaid && c.providerRef) {
+      await runAfterResponse(async () => {
+        try {
+          await provider.afterPaid!({ providerRef: c.providerRef!, providerPaymentId: c.providerPaymentId, amountHalalas: c.amount, orderNumber: c.orderNumber });
+          await addOrderEvent(args.db ?? (await getDb()), { orderId: id, type: "payment", message: `تم تأكيد العملية لدى ${provider.label} (Capture)` });
+        } catch (e) {
+          await reportError("payment", e, { path: `${provider.label}: capture after payment` });
+          await addOrderEvent(args.db ?? (await getDb()), { orderId: id, type: "payment", message: `تعذّر تأكيد العملية لدى ${provider.label} — أكّدها من لوحة ${provider.label}` });
+        }
+      });
+    }
   }
   return result;
 }

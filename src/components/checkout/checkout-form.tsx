@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Lock, LoaderCircle, Check, ChevronDown, ShoppingBag, CreditCard, Banknote, FlaskConical } from "lucide-react";
+import { Lock, LoaderCircle, Check, ChevronDown, ShoppingBag, CreditCard, Banknote, FlaskConical, CalendarClock } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
 import { useI18n, format } from "@/components/i18n-provider";
 import { Money } from "@/components/ui/price";
@@ -281,6 +281,8 @@ export function CheckoutForm({ cities, paymentBadges, account = null }: { cities
   const stepLabels = [t.checkout.steps.details, t.checkout.steps.delivery, t.checkout.steps.payment];
   const methodMeta: Record<string, { label: string; hint: string; icon: typeof CreditCard }> = {
     moyasar: { label: t.checkout.payOnline, hint: paymentBadges.length ? paymentBadges.join(" · ") : t.checkout.payOnlineHint, icon: CreditCard },
+    tabby: { label: t.checkout.tabby, hint: t.checkout.tabbyHint, icon: CalendarClock },
+    tamara: { label: t.checkout.tamara, hint: t.checkout.tamaraHint, icon: CalendarClock },
     cod: { label: t.checkout.cod, hint: t.checkout.codHint, icon: Banknote },
     test: { label: t.checkout.testGateway, hint: t.checkout.testGatewayHint, icon: FlaskConical },
   };

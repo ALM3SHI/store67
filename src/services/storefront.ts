@@ -56,7 +56,11 @@ export const getShell = cache(async (locale: Locale): Promise<Shell> => {
   const methods = availablePaymentMethods(settings.payments);
   const online = methods.some((m) => m.id === "moyasar");
   const cod = methods.some((m) => m.id === "cod");
-  const badges = online ? settings.payments.advertisedMethods.map((m) => METHOD_LABELS[m]![locale]) : [];
+  const badges = [
+    ...(online ? settings.payments.advertisedMethods.map((m) => METHOD_LABELS[m]![locale]) : []),
+    ...(methods.some((m) => m.id === "tabby") ? [locale === "ar" ? "تابي" : "Tabby"] : []),
+    ...(methods.some((m) => m.id === "tamara") ? [locale === "ar" ? "تمارا" : "Tamara"] : []),
+  ];
 
   const items: string[] = [];
   for (const a of settings.announcements.items) if (a.active) items.push(locale === "ar" ? a.textAr : a.textEn);

@@ -30,6 +30,19 @@ export const env = {
     webhookSecret: str("MOYASAR_WEBHOOK_SECRET"),
     apiBase: str("MOYASAR_API_BASE") ?? "https://api.moyasar.com/v1",
   },
+  tabby: {
+    secretKey: str("TABBY_SECRET_KEY"),
+    merchantCode: str("TABBY_MERCHANT_CODE"),
+    /** KSA merchants: https://api.tabby.sa */
+    apiBase: (str("TABBY_API_BASE") ?? "https://api.tabby.sa").replace(/\/$/, ""),
+    /** Value of the custom header you set when registering the webhook */
+    webhookSecret: str("TABBY_WEBHOOK_SECRET"),
+  },
+  tamara: {
+    apiToken: str("TAMARA_API_TOKEN"),
+    /** https://api-sandbox.tamara.co for testing, https://api.tamara.co live */
+    apiBase: (str("TAMARA_API_BASE") ?? "https://api.tamara.co").replace(/\/$/, ""),
+  },
   testGateway: {
     enabled: str("PAYMENTS_TEST_GATEWAY") === "enabled",
   },

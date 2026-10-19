@@ -17,6 +17,7 @@ import ar from "@/i18n/ar";
 import { notifyOrder } from "@/services/notify";
 import { runAfterResponse } from "@/lib/after";
 import { sendBackInStockAlerts } from "@/services/stock-alerts";
+import { paymentProviderOnShipped } from "@/services/payments/shipped";
 import type { OrderEmailKind } from "@/services/notify/templates";
 
 const idSchema = z.uuid();
@@ -51,6 +52,7 @@ export async function updateOrderStatus(_: ActionState, fd: FormData): Promise<A
   const sendEmail = fd.has("emailToggle") ? fd.get("email") === "on" : true;
   if (mailKind && sendEmail) await runAfterResponse(() => notifyOrder(id, mailKind));
   if (to === "cancelled") await runAfterResponse(() => sendBackInStockAlerts());
+  if (to === "shipped") await runAfterResponse(() => paymentProviderOnShipped(id));
   const warn = to === "cancelled" && o.paymentStatus === "paid" ? " الطلب مدفوع: نفّذ الاسترجاع من قسم الدفع." : "";
   return done(id, "حُدّثت حالة الطلب." + warn);
 }
@@ -88,7 +90,10 @@ export async function saveManualShipment(_: ActionState, fd: FormData): Promise<
     await addOrderEvent(tx, { orderId: id, type: "shipment", message: `شُحن الطلب${carrier ? ` عبر ${carrier}` : ""} — رقم التتبع ${tracking}`, internal: false, actorId: admin.userId, actorName: admin.name });
   });
   await audit({ actorId: admin.userId, actorEmail: admin.email, action: "order.shipment_manual", entity: "order", entityId: id, meta: { tracking } });
-  if (o.status !== "shipped") await runAfterResponse(() => notifyOrder(id, "order_shipped"));
+  if (o.status !== "shipped") {
+    await runAfterResponse(() => notifyOrder(id, "order_shipped"));
+    await runAfterResponse(() => paymentProviderOnShipped(id));
+  }
   return done(id, "حُفظت بيانات الشحنة وأصبح الطلب «تم الشحن».");
 }
 
@@ -134,6 +139,7 @@ export async function createAramexShipment(_: ActionState, fd: FormData): Promis
     });
     await audit({ actorId: admin.userId, actorEmail: admin.email, action: "order.shipment_aramex", entity: "order", entityId: id, meta: { tracking: res.trackingNumber } });
     await runAfterResponse(() => notifyOrder(id, "order_shipped"));
+    await runAfterResponse(() => paymentProviderOnShipped(id));
     return done(id, `أُنشئت الشحنة: ${res.trackingNumber}`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "خطأ غير معروف";
@@ -217,7 +223,7 @@ export async function refreshPaymentStatus(_: ActionState, fd: FormData): Promis
   const id = idSchema.parse(fd.get("orderId"));
   const db = await getDb();
   const ps = await db.select().from(schema.payments).where(eq(schema.payments.orderId, id)).orderBy(desc(schema.payments.createdAt));
-  const p = ps.find((x) => x.providerRef && (x.provider === "moyasar" || x.provider === "test"));
+  const p = ps.find((x) => x.providerRef && x.provider !== "cod");
   if (!p) return { ok: false, message: "لا توجد دفعة إلكترونية للتحقق منها." };
   const provider = getOnlineProvider(p.provider);
   if (!provider?.isConfigured()) return { ok: false, message: "بوابة الدفع غير مهيأة." };

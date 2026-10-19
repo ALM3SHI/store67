@@ -23,6 +23,8 @@ export default async function SettingsPage() {
   const rows = [
     { label: "قاعدة البيانات", ok: Boolean(env.databaseUrl), on: "PostgreSQL (DATABASE_URL)", off: "قاعدة محلية مدمجة (PGlite) — للتطوير فقط" },
     { label: "Moyasar — الدفع الإلكتروني", ok: pay.moyasar, on: env.moyasar.secretKey?.startsWith("sk_live") ? "مفاتيح حية" : "مفاتيح اختبار", off: "غير مربوط: MOYASAR_SECRET_KEY + MOYASAR_WEBHOOK_SECRET" },
+    { label: "تابي (التقسيط)", ok: pay.tabby, on: `مربوط (${env.tabby.apiBase})`, off: "غير مربوط: TABBY_SECRET_KEY + TABBY_MERCHANT_CODE" },
+    { label: "تمارا (التقسيط)", ok: pay.tamara, on: `مربوط (${env.tamara.apiBase})`, off: "غير مربوط: TAMARA_API_TOKEN" },
     { label: "بوابة الاختبار", ok: !pay.test, on: "مغلقة", off: "مفعّلة (PAYMENTS_TEST_GATEWAY) — أغلقها في الإنتاج" },
     { label: "أرامكس", ok: ship.aramex, on: `مربوط (${env.aramex.baseUrl})`, off: "غير مربوط — الشحن يدوي بسعر ثابت" },
     { label: "تخزين الملفات", ok: env.storage.driver === "supabase", on: "Supabase Storage", off: "قرص محلي (./storage) — غير مناسب للاستضافة السحابية بدون قرص دائم" },

@@ -84,6 +84,9 @@ export const shippingSettingsSchema = z.object({
 
 export const paymentSettingsSchema = z.object({
   onlineEnabled: z.boolean().default(true),
+  /** Buy now, pay later — shown only when the provider keys are set */
+  tabbyEnabled: z.boolean().default(true),
+  tamaraEnabled: z.boolean().default(true),
   codEnabled: z.boolean().default(false),
   codFeeHalalas: z.number().int().min(0).default(0),
   codMaxHalalas: z.number().int().min(0).nullable().default(null),

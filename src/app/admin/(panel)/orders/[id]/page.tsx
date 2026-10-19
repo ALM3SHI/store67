@@ -198,7 +198,7 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
             <ul className="space-y-2 text-sm">
               {payments.map((p) => (
                 <li key={p.id} className="rounded-lg bg-paper p-2">
-                  <div className="flex justify-between"><span>{p.provider === "moyasar" ? "Moyasar" : p.provider === "cod" ? "عند الاستلام" : "بوابة اختبار"}{p.method ? ` — ${p.method}` : ""}</span><Badge tone={paymentStatusTone[p.status]}>{ar.paymentStatus[p.status]}</Badge></div>
+                  <div className="flex justify-between"><span>{({ moyasar: "Moyasar", tabby: "تابي", tamara: "تمارا", cod: "عند الاستلام", test: "بوابة اختبار" } as Record<string, string>)[p.provider] ?? p.provider}{p.method ? ` — ${p.method}` : ""}</span><Badge tone={paymentStatusTone[p.status]}>{ar.paymentStatus[p.status]}</Badge></div>
                   <div className="mt-1 flex justify-between text-xs text-metal-500"><span dir="ltr">{p.providerRef ?? ""}</span><Money halalas={p.amountHalalas} locale="ar" /></div>
                   {p.refundedHalalas ? <p className="text-xs">مسترجع: <Money halalas={p.refundedHalalas} locale="ar" /></p> : null}
                   {p.failureReason ? <p className="text-xs text-danger">{p.failureReason}</p> : null}

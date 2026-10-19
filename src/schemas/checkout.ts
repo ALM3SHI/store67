@@ -9,7 +9,7 @@ export const cartLineSchema = z.object({
 
 export const cartSchema = z.array(cartLineSchema).min(1).max(30);
 
-export const paymentMethodSchema = z.enum(["moyasar", "cod", "test"]);
+export const paymentMethodSchema = z.enum(["moyasar", "tabby", "tamara", "cod", "test"]);
 export type PaymentMethodId = z.infer<typeof paymentMethodSchema>;
 
 export const nationalAddressRegex = /^[A-Za-z]{4}\d{4}$/;

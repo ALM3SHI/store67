@@ -70,7 +70,15 @@ export async function storeFacts(locale: Locale): Promise<{ facts: Fact[]; conte
     ? (ar ? "طرق الدفع المتاحة: " : "Available payment methods: ") +
       methods
         .map((m) =>
-          m.id === "moyasar" ? settings.payments.advertisedMethods.join(", ") : m.id === "cod" ? (ar ? "الدفع عند الاستلام" : "cash on delivery") : ar ? "بوابة اختبار" : "test gateway",
+          m.id === "moyasar"
+            ? settings.payments.advertisedMethods.join(", ")
+            : m.id === "tabby"
+              ? ar ? "التقسيط مع تابي" : "instalments with Tabby"
+              : m.id === "tamara"
+                ? ar ? "التقسيط مع تمارا" : "instalments with Tamara"
+                : m.id === "cod"
+                  ? ar ? "الدفع عند الاستلام" : "cash on delivery"
+                  : ar ? "بوابة اختبار" : "test gateway",
         )
         .join(ar ? "، " : ", ")
     : ar

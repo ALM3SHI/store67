@@ -11,6 +11,7 @@ import { buildQuote } from "@/services/quote";
 import { getSettings } from "@/services/settings";
 import { addOrderEvent, expireStaleOrders, releaseOrderStock } from "@/services/orders";
 import { getOnlineProvider } from "@/services/payments/registry";
+import { PaymentRejectedError, type SessionOrderContext } from "@/services/payments/types";
 import { cityLabel } from "@/lib/saudi-cities";
 import { notifyOrder } from "@/services/notify";
 import { runAfterResponse } from "@/lib/after";
@@ -23,6 +24,7 @@ export type CheckoutErrorCode =
   | "price_changed"
   | "coupon_invalid"
   | "payment_unavailable"
+  | "payment_rejected"
   | "shipping_unavailable"
   | "payment_provider_error";
 
@@ -271,7 +273,9 @@ export async function startPaymentSession(orderId: string, accessToken: string, 
 
   const back = orderUrl(order.locale, order.number, accessToken);
   try {
+    const orderContext = provider.id === "tabby" || provider.id === "tamara" ? await sessionOrderContext(order, conn) : undefined;
     const session = await provider.createSession({
+      order: orderContext,
       paymentId: payment!.id,
       orderNumber: order.number,
       amountHalalas: order.totalHalalas,
@@ -288,6 +292,16 @@ export async function startPaymentSession(orderId: string, accessToken: string, 
     await conn.update(schema.orders).set({ paymentStatus: "pending", updatedAt: new Date() }).where(eq(schema.orders.id, order.id));
     return session.checkoutUrl;
   } catch (e) {
+    if (e instanceof PaymentRejectedError) {
+      // Not eligible (e.g. instalments refused): cancel this attempt so the customer can pay another way.
+      await conn.update(schema.payments).set({ status: "failed", failureReason: "rejected", updatedAt: new Date() }).where(eq(schema.payments.id, payment!.id));
+      await (conn as Tx).transaction(async (tx) => {
+        await tx.update(schema.orders).set({ status: "cancelled", paymentStatus: "failed", cancelledAt: new Date(), updatedAt: new Date() }).where(eq(schema.orders.id, order.id));
+        await releaseOrderStock(tx, order.id, `رفض ${provider.label} الطلب`);
+        await addOrderEvent(tx, { orderId: order.id, type: "payment", message: `لم يقبل ${provider.label} هذا الطلب؛ أُلغي ليختار العميل طريقة دفع أخرى` });
+      });
+      throw new CheckoutError("payment_rejected", provider.label);
+    }
     await reportError("payment", e, { path: "checkout: create payment session" });
     await conn
       .update(schema.payments)
@@ -299,6 +313,33 @@ export async function startPaymentSession(orderId: string, accessToken: string, 
     });
     throw new CheckoutError("payment_provider_error");
   }
+}
+
+/** Buyer, address and items for instalment providers (they assess the order themselves). */
+async function sessionOrderContext(order: typeof schema.orders.$inferSelect, conn: DbOrTx): Promise<SessionOrderContext> {
+  const [items, customer, [prev]] = await Promise.all([
+    conn.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, order.id)),
+    order.customerId ? conn.select().from(schema.customers).where(eq(schema.customers.id, order.customerId)).then((r) => r[0]) : Promise.resolve(undefined),
+    conn.select({ n: sql<number>`count(*)::int` }).from(schema.orders).where(and(eq(schema.orders.phone, order.phone), sql`${schema.orders.paidAt} is not null`)),
+  ]);
+  const L = order.locale === "en" ? "en" : "ar";
+  const a = order.shippingAddress;
+  return {
+    buyer: { name: order.customerName, phone: order.phone, email: order.email, registeredSince: customer?.createdAt ?? order.createdAt, previousOrders: prev?.n ?? 0 },
+    shipping: { city: cityLabel(a.city, "en"), address: [a.street, a.district].filter(Boolean).join(", "), postalCode: a.postalCode ?? "" },
+    items: items.map((i) => ({
+      sku: i.sku,
+      title: L === "ar" ? i.nameAr : i.nameEn,
+      quantity: i.quantity,
+      unitHalalas: i.unitPriceHalalas,
+      totalHalalas: i.lineTotalHalalas,
+      productUrl: `${env.appUrl}/${L}/products`,
+      imageUrl: i.imageUrl ? (i.imageUrl.startsWith("http") ? i.imageUrl : `${env.appUrl}${i.imageUrl}`) : null,
+    })),
+    shippingHalalas: order.shippingHalalas + order.codFeeHalalas,
+    taxHalalas: order.pricesIncludeTax ? 0 : order.taxHalalas,
+    discountHalalas: order.discountHalalas,
+  };
 }
 
 /** Customer-initiated retry from the order page. */
