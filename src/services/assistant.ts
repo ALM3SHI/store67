@@ -89,7 +89,9 @@ export async function storeFacts(locale: Locale): Promise<{ facts: Fact[]; conte
   const returns = settings.commerce.returnsWindowDays;
   facts.push({
     q: ar ? "الاسترجاع الاستبدال ارجاع المنتج" : "return refund exchange policy",
-    a: ar ? `يمكن طلب الاسترجاع خلال ${returns} أيام من الاستلام وفق سياسة الاسترجاع.` : `Returns can be requested within ${returns} days of delivery under our returns policy.`,
+    a: ar
+      ? `يمكن طلب الاسترجاع أو الاستبدال خلال ${returns} أيام من الاستلام وفق سياسة الاسترجاع، من صفحة الطلب نفسها (زر «طلب استرجاع أو استبدال» يظهر بعد التسليم). سيراجع الفريق الطلب ويردّ عليك.`
+      : `Returns or exchanges can be requested within ${returns} days of delivery under our returns policy, from the order page itself (the “Request a return or exchange” button appears after delivery). The team reviews each request and replies.`,
   });
   facts.push({ q: ar ? "تتبع الطلب اين طلبي الشحنة" : "track order where is my order shipment", a: ar ? "أرسل لي هنا رقم الطلب ورقم الجوال الذي طلبت به وأخبرك بحالته، أو تتبعه من صفحة «تتبع الطلب»." : "Send me your order number and the mobile number you ordered with and I'll tell you its status — or use the “Track order” page." });
 

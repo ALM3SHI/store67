@@ -436,6 +436,8 @@ export const orders = pgTable(
     stockReleased: boolean("stock_released").notNull().default(false),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    /** Starts the return window */
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -662,4 +664,39 @@ export const stockAlerts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("stock_alerts_once_idx").on(t.variantId, t.email)],
+);
+
+/* ───────────────────────── Returns & exchanges */
+export type ReturnItem = { orderItemId: string; quantity: number };
+
+/**
+ * A customer's request to return or exchange items from a delivered order.
+ * requested → approved → received → completed, or requested → rejected,
+ * or requested → cancelled (by the customer).
+ */
+export const returnRequests = pgTable(
+  "return_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Short human reference, e.g. R-24A7K */
+    number: text("number").notNull().unique(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(), // return | exchange
+    status: text("status").notNull().default("requested"),
+    reason: text("reason").notNull(),
+    note: text("note").notNull().default(""),
+    /** For exchanges: what the customer wants instead (size, colour…) */
+    exchangeFor: text("exchange_for").notNull().default(""),
+    items: jsonb("items").$type<ReturnItem[]>().notNull(),
+    /** Shown to the customer with the decision */
+    staffMessage: text("staff_message").notNull().default(""),
+    restocked: boolean("restocked").notNull().default(false),
+    decidedBy: text("decided_by"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("return_requests_order_idx").on(t.orderId), index("return_requests_status_idx").on(t.status)],
 );

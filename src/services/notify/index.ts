@@ -6,7 +6,7 @@ import { env } from "@/config/env";
 import { getSettings } from "@/services/settings";
 import { customerOrderLink } from "@/services/order-links";
 import { smsConfigured, telegramConfigured, transport, type SendResult } from "./transport";
-import { renderAdminNewOrder, renderOrderEmail, renderOrderSms, type OrderEmailKind } from "./templates";
+import { renderAdminNewOrder, renderAdminReturn, renderOrderEmail, renderOrderSms, renderReturnEmail, type OrderEmailKind } from "./templates";
 
 export { emailConfigured, telegramConfigured, smsConfigured } from "./transport";
 
@@ -186,4 +186,76 @@ export async function listOrderNotifications(orderId: string, db?: DbOrTx) {
 export async function sendEmailLogged(kind: string, to: string, msg: { subject: string; text: string; html: string }, db?: DbOrTx) {
   const conn = db ?? (await getDb());
   return deliver(conn, { orderId: null, kind, channel: "email", recipient: to.toLowerCase() }, () => transport.email({ to, ...msg }));
+}
+
+const RETURN_REASON_AR: Record<string, string> = {
+  defective: "لا يعمل / به عيب",
+  damaged: "وصل متضررًا",
+  wrong_item: "منتج غير المطلوب",
+  not_as_described: "لا يطابق الوصف",
+  size_fit: "المقاس أو اللون",
+  changed_mind: "غيّر رأيه",
+  other: "سبب آخر",
+};
+
+/**
+ * Tells the customer where their return request stands (requested, approved,
+ * rejected, completed) and alerts the team about new ones. Once per status.
+ */
+export async function notifyReturn(requestId: string, opts: { db?: DbOrTx } = {}) {
+  try {
+    const conn = opts.db ?? (await getDb());
+    const [r] = await conn.select().from(schema.returnRequests).where(eq(schema.returnRequests.id, requestId));
+    if (!r || !["requested", "approved", "rejected", "completed"].includes(r.status)) return;
+    const [order] = await conn.select().from(schema.orders).where(eq(schema.orders.id, r.orderId));
+    if (!order) return;
+    const { notifications, store } = await getSettings(["notifications", "store"], conn);
+    const lines = await conn.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, order.id));
+    const L = order.locale === "en" ? "en" : "ar";
+    const items = r.items.map((i) => {
+      const l = lines.find((x) => x.id === i.orderItemId);
+      return { name: l ? (L === "ar" ? l.nameAr : l.nameEn) : "—", quantity: i.quantity, nameAr: l?.nameAr ?? "—" };
+    });
+    const storeName = (L === "ar" ? store.nameAr : store.nameEn) || (L === "ar" ? brand.nameAr : brand.name);
+    const kind = `return_${r.status}_${r.number}`;
+
+    if (notifications.customerEmails && order.email) {
+      const mail = renderReturnEmail({
+        locale: L,
+        status: r.status as "requested" | "approved" | "rejected" | "completed",
+        kind: r.kind,
+        number: r.number,
+        orderNumber: order.number,
+        customerName: order.customerName,
+        items,
+        staffMessage: r.staffMessage,
+        orderLink: customerOrderLink(order),
+        storeName,
+      });
+      const to = order.email.toLowerCase();
+      await deliver(conn, { orderId: order.id, kind, channel: "email", recipient: to }, () => transport.email({ to, ...mail }));
+    }
+
+    if (r.status === "requested") {
+      const alert = renderAdminReturn({
+        number: r.number,
+        kind: r.kind,
+        orderNumber: order.number,
+        reason: RETURN_REASON_AR[r.reason] ?? r.reason,
+        customerName: order.customerName,
+        items: items.map((i) => ({ name: i.nameAr, quantity: i.quantity })),
+        note: r.note,
+        exchangeFor: r.exchangeFor,
+        adminLink: `${env.appUrl}/admin/returns?status=requested`,
+        storeName: store.nameAr || brand.nameAr,
+      });
+      for (const to of adminRecipients(notifications.adminEmails)) {
+        await deliver(conn, { orderId: order.id, kind: `admin_${kind}`, channel: "email", recipient: to }, () => transport.email({ to, ...alert }));
+      }
+      if (telegramConfigured()) await deliver(conn, { orderId: order.id, kind: `admin_${kind}`, channel: "telegram", recipient: "chat" }, () => transport.telegram(alert.text));
+      else await transport.telegram(alert.text);
+    }
+  } catch (e) {
+    console.error("[notify] return notification failed:", e instanceof Error ? e.message : e);
+  }
 }

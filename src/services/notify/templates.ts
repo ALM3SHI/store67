@@ -251,3 +251,64 @@ export function renderLoginCode(d: { locale: Lang; code: string; minutes: number
 <p style="color:#7d8591;font-size:13px">${note}</p></div>`;
   return { sms, subject, html, text: `${ar ? "رمز الدخول" : "Sign-in code"}: ${d.code}\n\n${note}` };
 }
+
+/** Customer email about a return / exchange request. Values come from the request record. */
+export function renderReturnEmail(d: {
+  locale: Lang;
+  status: "requested" | "approved" | "rejected" | "completed";
+  kind: string;
+  number: string;
+  orderNumber: string;
+  customerName: string;
+  items: { name: string; quantity: number }[];
+  staffMessage: string;
+  orderLink: string;
+  storeName: string;
+}) {
+  const ar = d.locale === "ar";
+  const what = d.kind === "exchange" ? (ar ? "طلب الاستبدال" : "exchange request") : ar ? "طلب الاسترجاع" : "return request";
+  const head = ar
+    ? { requested: `استلمنا ${what} ${d.number}`, approved: `قُبل ${what} ${d.number}`, rejected: `بخصوص ${what} ${d.number}`, completed: `اكتمل ${what} ${d.number}` }[d.status]
+    : { requested: `We received your ${what} ${d.number}`, approved: `Your ${what} ${d.number} is approved`, rejected: `About your ${what} ${d.number}`, completed: `Your ${what} ${d.number} is complete` }[d.status];
+  const body = ar
+    ? {
+        requested: `${d.customerName}، استلمنا طلبك على الطلب ${d.orderNumber}. سيراجعه الفريق ونرد عليك؛ لا ترسل المنتج قبل موافقتنا.`,
+        approved: `${d.customerName}، وافقنا على طلبك. اتبع التعليمات أدناه لإرسال المنتج.`,
+        rejected: `${d.customerName}، راجعنا طلبك ولم نتمكن من قبوله. السبب موضح أدناه، ولأي استفسار راسلنا.`,
+        completed: `${d.customerName}، أنهينا طلبك. إن كان استرجاع مبلغ فقد يستغرق ظهوره في حسابك بضعة أيام حسب البنك أو طريقة الدفع.`,
+      }[d.status]
+    : {
+        requested: `${d.customerName}, we received your request on order ${d.orderNumber}. The team will review it and reply — please don't send the item before we approve.`,
+        approved: `${d.customerName}, your request is approved. Follow the instructions below to send the item.`,
+        rejected: `${d.customerName}, we reviewed your request and couldn't accept it. The reason is below; reply with any questions.`,
+        completed: `${d.customerName}, your request is complete. If it's a refund, it can take a few days to appear depending on your bank or payment method.`,
+      }[d.status];
+  const itemsLine = d.items.map((i) => `${i.name} × ${i.quantity}`).join(ar ? "، " : ", ");
+  const staffLabel = ar ? "رسالة المتجر" : "Message from the store";
+  const cta = ar ? "عرض الطلب" : "View order";
+  const subject = `${head} — ${d.storeName}`;
+  const text = [body, itemsLine, d.staffMessage ? `${staffLabel}:\n${d.staffMessage}` : "", `${cta}: ${d.orderLink}`].filter(Boolean).join("\n\n");
+  const html = `<div dir="${ar ? "rtl" : "ltr"}" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8;max-width:540px;color:#0a0e14">
+<p style="font-weight:bold;font-size:18px;margin:0 0 8px">${esc(d.storeName)}</p>
+<p style="font-weight:bold">${esc(head)}</p>
+<p>${esc(body)}</p>
+<p style="color:#4a525e">${esc(itemsLine)}</p>
+${d.staffMessage ? `<div style="background:#f3f4f6;border-radius:10px;padding:12px 14px;margin:12px 0"><p style="margin:0 0 4px;font-size:13px;color:#7d8591">${staffLabel}</p><p style="margin:0;white-space:pre-wrap">${esc(d.staffMessage)}</p></div>` : ""}
+<p><a href="${esc(d.orderLink)}" style="display:inline-block;background:#0a0e14;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px">${cta}</a></p></div>`;
+  return { subject, text, html };
+}
+
+export function renderAdminReturn(d: { number: string; kind: string; orderNumber: string; reason: string; customerName: string; items: { name: string; quantity: number }[]; note: string; exchangeFor: string; adminLink: string; storeName: string }) {
+  const text = [
+    `↩️ ${d.kind === "exchange" ? "طلب استبدال" : "طلب استرجاع"} ${d.number}`,
+    `الطلب: ${d.orderNumber} — ${d.customerName}`,
+    `السبب: ${d.reason}`,
+    `المنتجات: ${d.items.map((i) => `${i.name} × ${i.quantity}`).join("، ")}`,
+    d.exchangeFor ? `بدلًا منه: ${d.exchangeFor}` : "",
+    d.note ? `ملاحظة العميل: ${d.note}` : "",
+    d.adminLink,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return { subject: `${d.kind === "exchange" ? "طلب استبدال" : "طلب استرجاع"} ${d.number} — ${d.storeName}`, text, html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8">${esc(text).replace(/\n/g, "<br>")}</div>` };
+}

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CircleCheck, Clock, TriangleAlert, Truck, PackageCheck, Ban } from "lucide-react";
+import { CircleCheck, Clock, TriangleAlert, Truck, PackageCheck, Ban, Undo2 } from "lucide-react";
 import { and, eq } from "drizzle-orm";
 import { getDictionary, fmt } from "@/i18n";
 import { asLocale } from "@/i18n/config";
@@ -14,10 +14,12 @@ import { Money } from "@/components/ui/price";
 import { CopyOrderLink, AutoRefresh, PurchaseEvent, PrintReceipt } from "@/components/order/order-client";
 import { maskPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
+import { cancelReturnByCustomer, createReturnRequest, returnOverview, RETURN_KINDS, RETURN_REASONS, type CreateReturnError } from "@/services/returns";
+import { getCustomer } from "@/services/customer-auth";
 
 export const metadata: Metadata = { robots: { index: false, follow: false }, referrer: "same-origin" };
 
-type Props = { params: Promise<{ locale: string; number: string }>; searchParams: Promise<{ t?: string; review?: string; retry?: string }> };
+type Props = { params: Promise<{ locale: string; number: string }>; searchParams: Promise<{ t?: string; review?: string; retry?: string; return?: string }> };
 
 export default async function OrderPage({ params, searchParams }: Props) {
   const { locale: raw, number } = await params;
@@ -27,7 +29,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
   const token = sp.t;
   const order = await getOrderForCustomer(decodeURIComponent(number), token);
   if (!order) notFound();
-  const [{ items, events, shipments }, shell] = await Promise.all([getOrderDetails(order.id, { includeInternal: false }), getShell(locale)]);
+  const [{ items, events, shipments }, shell, returns] = await Promise.all([getOrderDetails(order.id, { includeInternal: false }), getShell(locale), returnOverview(order)]);
   const shipment = shipments[0];
   const addr = order.shippingAddress;
   const selfUrl = `/${locale}/orders/${encodeURIComponent(order.number)}?t=${encodeURIComponent(token!)}`;
@@ -60,6 +62,34 @@ export default async function OrderPage({ params, searchParams }: Props) {
     if (!item) return;
     await db.insert(schema.reviews).values({ productId, orderId: o.id, authorName: name, rating, body, status: "pending" }).onConflictDoNothing();
     redirect(`${selfUrl}&review=thanks`);
+  }
+
+  async function requestReturn(formData: FormData) {
+    "use server";
+    const o = await getOrderForCustomer(order!.number, token);
+    if (!o) return;
+    const lines = await getOrderDetails(o.id, { includeInternal: false });
+    const customer = await getCustomer();
+    const r = await createReturnRequest(
+      o.id,
+      {
+        kind: formData.get("kind") === "exchange" ? "exchange" : "return",
+        reason: String(formData.get("reason") ?? "") as never,
+        note: String(formData.get("note") ?? ""),
+        exchangeFor: String(formData.get("exchangeFor") ?? ""),
+        items: lines.items.map((it) => ({ orderItemId: it.id, quantity: Math.max(0, Math.floor(Number(formData.get(`qty_${it.id}`) ?? 0)) || 0) })),
+      },
+      { customerId: customer && customer.id === o.customerId ? customer.id : null },
+    );
+    redirect(`${selfUrl}&return=${r.ok ? "sent" : r.error}#returns`);
+  }
+
+  async function cancelReturn(formData: FormData) {
+    "use server";
+    const o = await getOrderForCustomer(order!.number, token);
+    if (!o) return;
+    await cancelReturnByCustomer(o.id, String(formData.get("id") ?? ""));
+    redirect(`${selfUrl}&return=cancelled#returns`);
   }
 
   const paid = order.paymentStatus === "paid" || order.paymentStatus === "cod_pending" || order.paymentStatus === "cod_collected";
@@ -208,6 +238,108 @@ export default async function OrderPage({ params, searchParams }: Props) {
               <button className="btn btn-ink justify-self-start">{t.order.reviewSubmit}</button>
             </form>
           )}
+        </section>
+      ) : null}
+
+      {returns.window.state !== "not_delivered" || returns.requests.length ? (
+        <section id="returns" aria-labelledby="returns-h" className="mt-10 panel p-5" data-noprint data-testid="returns-section">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="returns-h" className="flex items-center gap-2 text-lg font-semibold"><Undo2 size={19} aria-hidden /> {t.returns.title}</h2>
+            <Link href={`/${locale}/pages/returns`} className="text-sm text-volt underline-offset-4 hover:underline">{t.returns.policy}</Link>
+          </div>
+          {sp.return === "sent" ? <p className="mt-3 rounded-xl bg-ok/10 px-4 py-3 text-sm text-ok" role="status">{t.returns.sent}</p> : null}
+          {sp.return === "cancelled" ? <p className="mt-3 rounded-xl bg-paper-2 px-4 py-3 text-sm" role="status">{t.returns.cancelled}</p> : null}
+          {sp.return && sp.return in t.returns.errors ? <p className="mt-3 rounded-xl bg-danger/8 px-4 py-3 text-sm text-danger" role="alert">{t.returns.errors[sp.return as CreateReturnError]}</p> : null}
+
+          {returns.requests.length ? (
+            <ul className="mt-4 space-y-3" data-testid="return-requests">
+              {returns.requests.map((r) => (
+                <li key={r.id} className="rounded-xl border border-paper-2 p-4 text-sm">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <bdi className="font-display font-semibold" dir="ltr">{r.number}</bdi>
+                    <span>{t.returns.kinds[r.kind as "return" | "exchange"]}</span>
+                    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", r.status === "rejected" ? "bg-danger/10 text-danger" : r.status === "completed" ? "bg-ok/12 text-ok" : "bg-paper-2")} data-testid="return-status">
+                      {t.returns.statuses[r.status as keyof typeof t.returns.statuses]}
+                    </span>
+                    <span className="text-metal-500">{date.format(r.createdAt)}</span>
+                  </div>
+                  <p className="mt-2 text-metal-700">
+                    {r.items.map((ri) => {
+                      const it = items.find((x) => x.id === ri.orderItemId);
+                      return it ? `${locale === "ar" ? it.nameAr : it.nameEn} × ${ri.quantity}` : "";
+                    }).filter(Boolean).join(locale === "ar" ? "، " : ", ")}
+                    {" — "}{t.returns.reasons[r.reason as keyof typeof t.returns.reasons]}
+                    {r.exchangeFor ? ` — ${r.exchangeFor}` : ""}
+                  </p>
+                  {r.staffMessage ? (
+                    <div className="mt-3 rounded-lg bg-paper p-3">
+                      <p className="text-xs text-metal-500">{t.returns.staff}</p>
+                      <p className="mt-1 whitespace-pre-wrap">{r.staffMessage}</p>
+                    </div>
+                  ) : null}
+                  {r.status === "approved" ? <p className="mt-2 text-xs text-metal-500">{t.returns.approvedHint}</p> : null}
+                  {r.status === "requested" ? (
+                    <form action={cancelReturn} className="mt-3">
+                      <input type="hidden" name="id" value={r.id} />
+                      <button className="btn btn-ghost btn-sm">{t.returns.cancel}</button>
+                    </form>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {returns.window.state === "disabled" ? <p className="mt-3 text-sm text-metal-700">{t.returns.disabled}</p> : null}
+          {returns.window.state === "closed" ? <p className="mt-3 text-sm text-metal-700">{fmt(t.returns.closed, { days: String(returns.window.days) })}</p> : null}
+          {returns.window.state === "open" && !returns.anyLeft ? <p className="mt-3 text-sm text-metal-700">{t.returns.allRequested}</p> : null}
+          {returns.window.state === "open" && returns.pending ? <p className="mt-3 text-sm text-metal-700">{t.returns.pendingExists}</p> : null}
+
+          {returns.canRequest ? (
+            <details className="mt-4 rounded-xl border border-paper-2" open={Boolean(sp.return && sp.return !== "sent" && sp.return !== "cancelled")}>
+              <summary className="cursor-pointer list-none px-4 py-3 font-medium" data-testid="return-open">
+                {t.returns.open}
+                <span className="block text-xs font-normal text-metal-500">{fmt(t.returns.until, { date: new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-GB", { dateStyle: "long", timeZone: "Asia/Riyadh" }).format(returns.window.deadline!) })}</span>
+              </summary>
+              <form action={requestReturn} className="grid gap-4 border-t border-paper-2 p-4" data-testid="return-form">
+                <fieldset>
+                  <legend className="label">{t.returns.pick}</legend>
+                  <ul className="space-y-2">
+                    {items.map((it) => {
+                      const max = returns.remaining.get(it.id) ?? 0;
+                      if (!max) return null;
+                      return (
+                        <li key={it.id} className="flex items-center gap-3">
+                          <span className="flex-1 text-sm">{locale === "ar" ? it.nameAr : it.nameEn}{(locale === "ar" ? it.variantNameAr : it.variantNameEn) ? ` — ${locale === "ar" ? it.variantNameAr : it.variantNameEn}` : ""}</span>
+                          <label className="sr-only" htmlFor={`rq-${it.id}`}>{t.returns.qty}</label>
+                          <select id={`rq-${it.id}`} name={`qty_${it.id}`} className="field w-20" defaultValue={items.length === 1 ? String(max) : "0"}>
+                            {Array.from({ length: max + 1 }, (_, n) => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </fieldset>
+                <fieldset>
+                  <legend className="label">{t.returns.kind}</legend>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    {RETURN_KINDS.map((k) => (
+                      <label key={k} className="flex items-center gap-2"><input type="radio" name="kind" value={k} defaultChecked={k === "return"} /> {t.returns.kinds[k]}</label>
+                    ))}
+                  </div>
+                </fieldset>
+                <div>
+                  <label className="label" htmlFor="rq-reason">{t.returns.reason}</label>
+                  <select id="rq-reason" name="reason" className="field" required defaultValue="">
+                    <option value="" disabled>—</option>
+                    {RETURN_REASONS.map((r) => <option key={r} value={r}>{t.returns.reasons[r]}</option>)}
+                  </select>
+                </div>
+                <div><label className="label" htmlFor="rq-ex">{t.returns.exchangeFor}</label><input id="rq-ex" name="exchangeFor" maxLength={200} className="field" /></div>
+                <div><label className="label" htmlFor="rq-note">{t.returns.note}</label><textarea id="rq-note" name="note" rows={3} maxLength={1000} className="field" /></div>
+                <button className="btn btn-ink justify-self-start" data-testid="return-submit">{t.returns.submit}</button>
+              </form>
+            </details>
+          ) : null}
         </section>
       ) : null}
 

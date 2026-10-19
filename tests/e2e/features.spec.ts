@@ -155,4 +155,41 @@ test.describe("store features", () => {
     await expect(page.getByTestId("assistant-answer").last()).toContainText(number);
     await expect(page.getByTestId("assistant-answer").last()).toContainText("مؤكد");
   });
+
+  test("returns: customer requests after delivery, admin approves, customer sees the reply", async ({ page }) => {
+    const number = await createPaidOrder(page, "0553339911");
+    const orderUrl = page.url();
+    await expect(page.getByTestId("returns-section")).toHaveCount(0); // not delivered yet
+    await adminLogin(page);
+    await page.goto(`/admin/orders?q=${number}`);
+    await page.getByTestId("admin-order-link").first().click();
+    const ship = page.getByTestId("manual-shipment");
+    await ship.locator('input[name="trackingNumber"]').fill("RET123");
+    await ship.getByRole("button", { name: "حفظ الشحنة" }).click();
+    await expect(ship.getByTestId("form-message")).toBeVisible();
+    await page.reload();
+    const status = page.getByTestId("status-form");
+    await status.locator('select[name="status"]').selectOption("delivered");
+    await status.getByRole("button", { name: "تحديث" }).click();
+    await expect(page.getByTestId("status-form")).toHaveCount(0); // delivered is final, so the form goes away
+
+    await page.goto(orderUrl);
+    await page.getByTestId("return-open").click();
+    const form = page.getByTestId("return-form");
+    await form.locator('select[name="reason"]').selectOption("size_fit");
+    await form.getByTestId("return-submit").click();
+    await expect(page.getByTestId("returns-section").getByRole("status")).toContainText("استلمنا طلبك");
+    await expect(page.getByTestId("return-status")).toHaveText("قيد المراجعة");
+    await expect(page.getByTestId("return-open")).toHaveCount(0); // one pending request at a time
+
+    await page.goto("/admin/returns");
+    const card = page.getByTestId("admin-return").filter({ hasText: number });
+    await card.getByTestId("return-approve").locator("textarea").fill("أرسل المنتج مع مندوب سمسا");
+    await card.getByTestId("return-approve").getByRole("button", { name: "قبول" }).click();
+    await expect(card.getByTestId("return-receive")).toBeVisible(); // next step appears once approved
+
+    await page.goto(orderUrl);
+    await expect(page.getByTestId("return-status")).toContainText("مقبول");
+    await expect(page.getByText("أرسل المنتج مع مندوب سمسا")).toBeVisible();
+  });
 });

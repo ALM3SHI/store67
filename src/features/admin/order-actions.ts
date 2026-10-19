@@ -39,7 +39,7 @@ export async function updateOrderStatus(_: ActionState, fd: FormData): Promise<A
     return { ok: false, message: "لا يمكن شحن طلب غير مدفوع." };
   }
   await (db as unknown as Tx).transaction(async (tx) => {
-    await tx.update(schema.orders).set({ status: to, updatedAt: new Date(), ...(to === "cancelled" ? { cancelledAt: new Date() } : {}) }).where(eq(schema.orders.id, id));
+    await tx.update(schema.orders).set({ status: to, updatedAt: new Date(), ...(to === "cancelled" ? { cancelledAt: new Date() } : {}), ...(to === "delivered" ? { deliveredAt: new Date() } : {}) }).where(eq(schema.orders.id, id));
     if (to === "cancelled") await releaseOrderStock(tx, id, "إلغاء من الإدارة");
     if (to === "delivered") {
       await tx.update(schema.shipments).set({ status: "delivered", updatedAt: new Date() }).where(eq(schema.shipments.orderId, id));
@@ -162,7 +162,7 @@ export async function syncShipment(_: ActionState, fd: FormData): Promise<Action
     if (r.status === "delivered") {
       const [o] = await db.select().from(schema.orders).where(eq(schema.orders.id, id));
       if (o && o.status === "shipped") {
-        await db.update(schema.orders).set({ status: "delivered", updatedAt: new Date() }).where(eq(schema.orders.id, id));
+        await db.update(schema.orders).set({ status: "delivered", deliveredAt: new Date(), updatedAt: new Date() }).where(eq(schema.orders.id, id));
         await addOrderEvent(db, { orderId: id, type: "status", message: "تم تسليم الطلب", internal: false });
         await runAfterResponse(() => notifyOrder(id, "order_delivered"));
       }

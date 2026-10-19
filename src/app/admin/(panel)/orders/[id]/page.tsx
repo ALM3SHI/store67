@@ -18,6 +18,8 @@ import { audit } from "@/services/audit";
 import { formatSaudiMobile } from "@/lib/phone";
 import { halalasToInput } from "@/lib/money";
 import ar from "@/i18n/ar";
+import { listReturnsForOrder } from "@/services/returns";
+import { ReturnCard } from "@/components/admin/return-card";
 
 export const metadata = { title: "تفاصيل الطلب" };
 
@@ -28,6 +30,13 @@ const notificationKindLabel: Record<string, string> = {
   order_cancelled: "إشعار الإلغاء للعميل",
   admin_new_order: "تنبيه طلب جديد للفريق",
 };
+const notificationLabel = (k: string) => {
+  if (notificationKindLabel[k]) return notificationKindLabel[k];
+  const m = /^(admin_)?return_([a-z]+)_(.+)$/.exec(k);
+  if (!m) return k;
+  const status = { requested: "استلام الطلب", approved: "القبول", rejected: "الرفض", completed: "الإغلاق" }[m[2]!] ?? m[2];
+  return m[1] ? `تنبيه طلب استرجاع ${m[3]} للفريق` : `طلب استرجاع ${m[3]}: إشعار ${status} للعميل`;
+};
 
 export default async function OrderAdmin({ params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin("orders.view");
@@ -36,7 +45,7 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
   const db = await getDb();
   const [o] = await db.select().from(schema.orders).where(eq(schema.orders.id, id));
   if (!o) notFound();
-  const [{ items, events, payments, shipments }, notes] = await Promise.all([getOrderDetails(id, { includeInternal: true }), listOrderNotifications(id)]);
+  const [{ items, events, payments, shipments }, notes, returns] = await Promise.all([getOrderDetails(id, { includeInternal: true }), listOrderNotifications(id), listReturnsForOrder(id)]);
   await audit({ actorId: admin.userId, actorEmail: admin.email, action: "order.view", entity: "order", entityId: id });
   const canUpdate = can(admin.role, "orders.update");
   const canRefund = can(admin.role, "orders.refund");
@@ -121,6 +130,14 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
             ) : null}
           </Card>
 
+          {returns.length ? (
+            <Card title="الاسترجاع والاستبدال">
+              <ul className="space-y-3">
+                {returns.map((r) => <ReturnCard key={r.id} r={r} lines={items} order={{ id: o.id, number: o.number, customerName: o.customerName, paymentMethod: o.paymentMethod }} canUpdate={canUpdate} />)}
+              </ul>
+            </Card>
+          ) : null}
+
           <Card title="السجل والملاحظات">
             {canUpdate ? (
               <ActionForm action={addOrderNote} className="mb-5 space-y-2">
@@ -158,7 +175,7 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
                 {notes.map((n) => (
                   <li key={n.id} className="rounded-lg bg-paper p-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span>{notificationKindLabel[n.kind] ?? n.kind} — {n.channel === "email" ? "بريد" : n.channel === "sms" ? "رسالة نصية" : "تيليجرام"}</span>
+                      <span>{notificationLabel(n.kind)} — {n.channel === "email" ? "بريد" : n.channel === "sms" ? "رسالة نصية" : "تيليجرام"}</span>
                       <Badge tone={n.status === "sent" ? "green" : n.status === "failed" ? "red" : "gray"}>{n.status === "sent" ? "أُرسل" : n.status === "failed" ? "فشل" : n.status === "skipped" ? "لم يُرسل" : "جارٍ"}</Badge>
                     </div>
                     <p className="mt-1 text-xs text-metal-500"><span dir="ltr">{n.channel === "telegram" ? "" : n.channel === "sms" ? formatSaudiMobile(n.recipient) : n.recipient}</span> {date.format(n.updatedAt)}</p>
