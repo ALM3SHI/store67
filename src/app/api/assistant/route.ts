@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
   if (!perIp.allowed) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   const turns = [...history.slice(-7), { role: "user" as const, text: question }];
 
+  // Outside production, the reason an AI call failed is returned to help setup (never in production).
+  let aiError: string | undefined;
   if (aiConfigured()) {
     const day = new Date().toISOString().slice(0, 10);
     const global = await rateLimit(`assistant:global:${day}`, env.assistant.dailyLimit, 86400);
@@ -35,20 +37,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ mode: "ai", ...(await answerWithAi(turns, locale)) });
       } catch (e) {
         await reportError("request", e, { path: "assistant (AI failed, FAQ fallback)" });
+        if (env.appEnv !== "production") aiError = e instanceof Error ? e.message : String(e);
       }
-    }
+    } else if (env.appEnv !== "production") aiError = "daily limit reached";
   }
+  const debug = aiError ? { aiError } : {};
 
   // Without AI: order status still works when the number and mobile are given.
   const order = await orderContext(turns, locale);
-  if (order.found && order.text) return NextResponse.json({ mode: "faq", answer: orderStatusSentence(order.text, locale), products: [] });
+  if (order.found && order.text) return NextResponse.json({ mode: "faq", answer: orderStatusSentence(order.text, locale), products: [], ...debug });
   if (order.asked && !order.found) {
     const msg =
       locale === "ar"
         ? order.text?.includes("no mobile") ? "لعرض حالة الطلب أرسل رقم الجوال الذي استخدمته عند الطلب." : "لم أجد طلبًا بهذا الرقم ورقم الجوال. تأكد منهما أو استخدم صفحة تتبع الطلب."
         : order.text?.includes("no mobile") ? "To show the order status, send the mobile number you used when ordering." : "I couldn't find an order with that number and mobile. Please check both or use the Track order page.";
-    return NextResponse.json({ mode: "faq", answer: msg, products: [] });
+    return NextResponse.json({ mode: "faq", answer: msg, products: [], ...debug });
   }
   const answer = await answerFromFaq(question, locale);
-  return NextResponse.json({ mode: "faq", answer, products: answer ? await mentionedProducts(answer, locale) : [] });
+  return NextResponse.json({ mode: "faq", answer, products: answer ? await mentionedProducts(answer, locale) : [], ...debug });
 }
