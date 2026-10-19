@@ -71,6 +71,10 @@ export const env = {
     chatId: str("TELEGRAM_CHAT_ID"),
   },
   assistant: {
+    /** gemini | anthropic — empty picks whichever key is set (Gemini first) */
+    provider: str("AI_PROVIDER") as "gemini" | "anthropic" | undefined,
+    geminiKey: str("GEMINI_API_KEY"),
+    geminiModel: str("GEMINI_MODEL") ?? "gemini-3.8-flash",
     anthropicKey: str("ANTHROPIC_API_KEY"),
     model: str("ASSISTANT_MODEL") ?? "claude-haiku-5-5",
     dailyLimit: Number(str("ASSISTANT_DAILY_LIMIT") ?? "300"),

@@ -9,6 +9,7 @@ import type { ProductInput } from "@/schemas/product";
 import { cn } from "@/lib/utils";
 import { Product3D } from "@/components/product/product-3d";
 import { I18nProvider } from "@/components/i18n-provider";
+import { AiCopyPanel } from "./ai-copy";
 import ar from "@/i18n/ar";
 
 type Row = Record<string, string | boolean | number | null | undefined>;
@@ -59,7 +60,7 @@ function Rows({ title, hint, rows, setRows, cols, blank }: { title: string; hint
 type Variant = NonNullable<ProductInput["variants"]>[number];
 type Media = NonNullable<ProductInput["media"]>[number];
 
-export function ProductEditor({ initial, categories }: { initial: ProductInput & { id?: string }; categories: { id: string; nameAr: string }[] }) {
+export function ProductEditor({ initial, categories, aiEnabled = false }: { initial: ProductInput & { id?: string }; categories: { id: string; nameAr: string }[]; aiEnabled?: boolean }) {
   const router = useRouter();
   const [p, setP] = useState(initial);
   const [uploading, setUploading] = useState(false);
@@ -174,6 +175,31 @@ export function ProductEditor({ initial, categories }: { initial: ProductInput &
             </div>
             {text("descriptionAr", "الوصف الطويل (عربي)", { area: true, rows: 6, hint: "سطر فارغ = فقرة جديدة. ## عنوان. - نقطة." })}
             {text("descriptionEn", "الوصف الطويل (إنجليزي)", { area: true, rows: 6, dir: "ltr" })}
+          </section>
+
+          <section className="space-y-3 rounded-2xl border border-paper-2 bg-white p-5">
+            <h2 className="flex items-center gap-2 font-semibold">الكاتب الذكي <span className="rounded-full bg-volt/10 px-2 py-0.5 text-xs font-normal text-volt">Gemini</span></h2>
+            <AiCopyPanel
+              enabled={aiEnabled}
+              nameAr={p.nameAr ?? ""}
+              nameEn={p.nameEn ?? ""}
+              onApply={(c, mode) =>
+                setP((x) => {
+                  const pick = (cur: string | undefined, next: string) => (mode === "replace" ? next || cur || "" : cur?.trim() ? cur : next);
+                  return {
+                    ...x,
+                    taglineAr: pick(x.taglineAr, c.taglineAr),
+                    taglineEn: pick(x.taglineEn, c.taglineEn),
+                    shortAr: pick(x.shortAr, c.shortAr),
+                    shortEn: pick(x.shortEn, c.shortEn),
+                    descriptionAr: pick(x.descriptionAr, c.descriptionAr),
+                    descriptionEn: pick(x.descriptionEn, c.descriptionEn),
+                    highlights: mode === "replace" || !(x.highlights ?? []).length ? c.highlights : x.highlights,
+                    faqs: mode === "replace" || !(x.faqs ?? []).length ? c.faqs : x.faqs,
+                  };
+                })
+              }
+            />
           </section>
 
           <section className="space-y-4 rounded-2xl border border-paper-2 bg-white p-5">

@@ -62,7 +62,9 @@ export default async function StoreLayout({ children, params }: { children: Reac
   const theme = shell.settings.theme;
   const heroImage = products[0]?.media[0]?.url ?? null;
   const suggestions =
-    locale === "ar" ? ["كم تكلفة الشحن؟", "هل محوّل الطاقة مرفق؟", "ما طرق الدفع؟", "سياسة الاسترجاع"] : ["How much is shipping?", "Is an adapter included?", "Payment methods?", "Returns policy"];
+    locale === "ar"
+      ? ["وين طلبي؟", "ساعدني أختار منتج", "كم تكلفة الشحن؟", "ما طرق الدفع؟", "سياسة الاسترجاع"]
+      : ["Where is my order?", "Help me choose a product", "How much is shipping?", "Payment methods?", "Returns policy"];
 
   return (
     <html

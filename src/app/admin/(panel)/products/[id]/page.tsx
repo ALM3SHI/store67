@@ -1,3 +1,4 @@
+import { aiProvider } from "@/services/ai";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
@@ -32,6 +33,7 @@ export default async function EditProduct({ params, searchParams }: { params: Pr
       />
       <ProductEditor
         categories={categories}
+        aiEnabled={aiProvider() !== null}
         initial={{
           id: p.id,
           slug: p.slug,

@@ -1,3 +1,4 @@
+import { aiProvider } from "@/services/ai";
 import { requireAdmin } from "@/lib/auth/session";
 import { listCategories } from "@/services/catalog";
 import { PageHeader } from "@/components/admin/static";
@@ -13,6 +14,7 @@ export default async function NewProduct() {
       <PageHeader title="منتج جديد" description="يُحفظ المنتج كمسودة حتى تختار «منشور»." />
       <ProductEditor
         categories={categories}
+        aiEnabled={aiProvider() !== null}
         initial={{
           slug: "",
           status: "draft",

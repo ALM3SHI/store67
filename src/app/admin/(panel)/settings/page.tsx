@@ -4,6 +4,7 @@ import { getAllSettings } from "@/services/settings";
 import { paymentIntegrationStatus } from "@/services/payments/registry";
 import { shippingIntegrationStatus } from "@/services/shipping/registry";
 import { aiConfigured } from "@/services/assistant";
+import { aiModelName, aiProvider } from "@/services/ai";
 import { env } from "@/config/env";
 import { PageHeader, Card } from "@/components/admin/static";
 import { SettingsEditor } from "@/components/admin/settings-editor";
@@ -25,7 +26,7 @@ export default async function SettingsPage() {
     { label: "بوابة الاختبار", ok: !pay.test, on: "مغلقة", off: "مفعّلة (PAYMENTS_TEST_GATEWAY) — أغلقها في الإنتاج" },
     { label: "أرامكس", ok: ship.aramex, on: `مربوط (${env.aramex.baseUrl})`, off: "غير مربوط — الشحن يدوي بسعر ثابت" },
     { label: "تخزين الملفات", ok: env.storage.driver === "supabase", on: "Supabase Storage", off: "قرص محلي (./storage) — غير مناسب للاستضافة السحابية بدون قرص دائم" },
-    { label: "مساعد الشراء الذكي", ok: aiConfigured(), on: "مفعّل (ANTHROPIC_API_KEY)", off: "إجابات من الأسئلة المتكررة فقط" },
+    { label: "الذكاء الاصطناعي (المساعد والكاتب)", ok: aiConfigured(), on: `مفعّل — ${aiProvider() === "gemini" ? "Gemini" : "Claude"} (${aiModelName()})`, off: "غير مفعّل: أضف GEMINI_API_KEY — المساعد يجيب من الأسئلة المتكررة فقط" },
     { label: "البريد الإلكتروني (Resend)", ok: emailConfigured(), on: `مفعّل — المرسل ${env.email.from}`, off: "غير مهيأ: RESEND_API_KEY + EMAIL_FROM — لن تصل رسائل للعملاء" },
     { label: "الرسائل النصية (تقنيات)", ok: smsConfigured(), on: `مربوطة — اسم المرسل ${env.sms.sender}`, off: "غير مربوطة: TAQNYAT_API_KEY + SMS_SENDER" },
     { label: "تنبيهات تيليجرام", ok: telegramConfigured(), on: "مفعّلة", off: "غير مهيأة: TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID" },

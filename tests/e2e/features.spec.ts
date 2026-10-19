@@ -105,4 +105,17 @@ test.describe("store features", () => {
     await p.waitForURL("**/admin");
     await ctx.close();
   });
+
+  test("support chat: tells the order status when given the order number and mobile", async ({ page }) => {
+    const number = await createPaidOrder(page, "0556667788");
+    await page.goto("/ar");
+    await page.getByTestId("help-button").click();
+    await page.getByRole("textbox", { name: /اكتب سؤالك/ }).fill(`وين طلبي ${number}`);
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("assistant-answer").last()).toContainText("رقم الجوال");
+    await page.getByRole("textbox", { name: /اكتب سؤالك/ }).fill("0556667788");
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("assistant-answer").last()).toContainText(number);
+    await expect(page.getByTestId("assistant-answer").last()).toContainText("مؤكد");
+  });
 });

@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, X, Send, LoaderCircle } from "lucide-react";
+import Link from "next/link";
+import { MessageCircle, X, Send, LoaderCircle, ArrowUpLeft, ArrowUpRight } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 
-type Msg = { role: "user" | "bot"; text: string; mode?: "ai" | "faq" };
+type Msg = { role: "user" | "bot"; text: string; mode?: "ai" | "faq"; products?: { slug: string; name: string }[] };
 
 export function HelpWidget({ whatsapp, aiEnabled, suggestions }: { whatsapp: string; aiEnabled: boolean; suggestions: string[] }) {
   const { t, locale } = useI18n();
@@ -23,9 +24,12 @@ export function HelpWidget({ whatsapp, aiEnabled, suggestions }: { whatsapp: str
     setQ("");
     setBusy(true);
     try {
-      const res = await fetch("/api/assistant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: text, locale }) });
-      const data = (await res.json()) as { answer?: string | null; mode?: "ai" | "faq"; error?: string };
-      setMsgs((m) => [...m, { role: "bot", text: data.answer || t.assistant.noMatch, mode: data.mode }]);
+      // The last few turns go with the question so follow-ups ("and the price?") make sense.
+      const history = msgs.slice(-6).map((m) => ({ role: m.role === "user" ? "user" : "assistant", text: m.text }));
+      const res = await fetch("/api/assistant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: text, history, locale }) });
+      const data = (await res.json()) as { answer?: string | null; mode?: "ai" | "faq"; error?: string; products?: { slug: string; name: string }[] };
+      const fallback = data.error === "rate_limited" ? t.track.tooMany : t.assistant.noMatch;
+      setMsgs((m) => [...m, { role: "bot", text: data.answer || fallback, mode: data.mode, products: data.products }]);
     } catch {
       setMsgs((m) => [...m, { role: "bot", text: t.assistant.error }]);
     } finally {
@@ -60,9 +64,20 @@ export function HelpWidget({ whatsapp, aiEnabled, suggestions }: { whatsapp: str
               </div>
             ) : null}
             {msgs.map((m, i) => (
-              <p key={i} className={cn("max-w-[85%] whitespace-pre-line rounded-2xl px-3.5 py-2.5 leading-7", m.role === "user" ? "ms-auto bg-volt text-white" : "bg-white ring-1 ring-paper-2")}>
-                {m.text}
-              </p>
+              <div key={i} className={cn("max-w-[85%] space-y-2", m.role === "user" && "ms-auto")}>
+                <p className={cn("whitespace-pre-line rounded-2xl px-3.5 py-2.5 leading-7", m.role === "user" ? "bg-volt text-white" : "bg-white ring-1 ring-paper-2")} data-testid={m.role === "bot" ? "assistant-answer" : undefined}>
+                  {m.text}
+                </p>
+                {m.products?.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {m.products.map((p) => (
+                      <Link key={p.slug} href={`/${locale}/products/${p.slug}`} onClick={() => setOpen(false)} className="inline-flex items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs text-white hover:bg-ink-3" data-testid="assistant-product">
+                        {p.name} {locale === "ar" ? <ArrowUpLeft size={13} /> : <ArrowUpRight size={13} />}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             ))}
             {busy ? <LoaderCircle className="animate-spin text-metal-500" size={18} aria-label={t.common.loading} /> : null}
             <div ref={endRef} />
