@@ -75,7 +75,7 @@ echo   Store:   http://localhost:3000/ar
 echo   Admin:   http://localhost:3000/admin
 echo   Close this window (or press Ctrl+C) to stop the store.
 echo.
-start "" /b cmd /c "timeout /t 10 /nobreak >nul & start "" http://localhost:3000/ar"
+start "" /b cmd /c "ping -n 11 127.0.0.1 >nul & start "" http://localhost:3000/ar"
 call npm run dev
 goto end
 
