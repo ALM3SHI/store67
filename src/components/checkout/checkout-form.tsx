@@ -70,7 +70,9 @@ export function CheckoutForm({ cities, paymentBadges }: { cities: City[]; paymen
     }
   }, [form, draftLoaded]);
 
-  useEffect(() => setCouponInput(cart.coupon ?? ""), [cart.coupon]);
+  useEffect(() => {
+    setCouponInput(cart.coupon ?? "");
+  }, [cart.coupon]);
 
   // Choose a default payment method once we know what's available
   const methods = useMemo(() => q?.paymentMethods ?? [], [q]);

@@ -15,7 +15,11 @@ export function HelpWidget({ whatsapp, aiEnabled, suggestions }: { whatsapp: str
   const [busy, setBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ block: "end" }), [msgs, busy]);
+  // Braces matter: newer browsers make scrollIntoView return a Promise, and React
+  // would treat a returned value as the effect's cleanup function.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" });
+  }, [msgs, busy]);
 
   const ask = async (question: string) => {
     const text = question.trim();
