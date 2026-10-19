@@ -125,7 +125,8 @@ export async function createViewer(canvas: HTMLCanvasElement, o: ViewerOptions):
 
   const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 100);
   const target = sphere.center.clone();
-  const dist = (sphere.radius / Math.sin(THREE.MathUtils.degToRad(30 / 2))) * 0.94;
+  // A little headroom so moving parts (e.g. ejected wallet cards) stay in frame
+  const dist = (sphere.radius / Math.sin(THREE.MathUtils.degToRad(30 / 2))) * 1.2;
   const setView = (az: number, el: number) => {
     camera.position.set(target.x + dist * Math.cos(el) * Math.sin(az), target.y + dist * Math.sin(el), target.z + dist * Math.cos(el) * Math.cos(az));
     camera.lookAt(target);
@@ -180,23 +181,33 @@ export async function createViewer(canvas: HTMLCanvasElement, o: ViewerOptions):
     canvas.addEventListener("pointerup", onUp);
   }
 
-  // Render loop that sleeps off-screen
-  const clock = new THREE.Clock();
+  // Render loop that sleeps off-screen and, when nothing moves, on-screen too:
+  // with auto-rotation off it only runs for a few seconds after an interaction.
   let raf = 0;
   let visible = false;
   let elapsed = 0;
+  let last = performance.now();
+  let awakeUntil = 0;
+  let inFrame = false;
   const frame = () => {
     raf = 0;
-    const dt = Math.min(clock.getDelta(), 0.05);
+    inFrame = true;
+    const now = performance.now();
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
     elapsed += dt;
     controls.update(dt);
     model.update?.(dt, elapsed);
     renderer.render(scene, camera);
-    if (visible && !document.hidden) raf = requestAnimationFrame(frame);
+    inFrame = false;
+    const moving = controls.autoRotate || performance.now() < awakeUntil;
+    if (visible && !document.hidden && moving) raf = requestAnimationFrame(frame);
   };
   const wake = () => {
-    if (!raf && visible && !document.hidden) {
-      clock.getDelta();
+    awakeUntil = performance.now() + 4000;
+    // Inside a frame the loop reschedules itself; never queue a second callback
+    if (!raf && !inFrame && visible && !document.hidden) {
+      last = performance.now();
       raf = requestAnimationFrame(frame);
     }
   };
@@ -208,6 +219,7 @@ export async function createViewer(canvas: HTMLCanvasElement, o: ViewerOptions):
   const onVis = () => wake();
   document.addEventListener("visibilitychange", onVis);
   controls.addEventListener("start", wake);
+  controls.addEventListener("change", wake);
 
   renderer.render(scene, camera);
   o.onReady?.();

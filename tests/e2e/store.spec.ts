@@ -24,7 +24,7 @@ test.describe("storefront", () => {
   });
 
   test("first-visit intro plays once and never hides the page content", async ({ browser }) => {
-    const ctx = await browser.newContext();
+    const ctx = await browser.newContext({ reducedMotion: "no-preference" });
     await ctx.addInitScript(() => Object.defineProperty(navigator, "webdriver", { get: () => false }));
     const page = await ctx.newPage();
     await page.goto("/ar");

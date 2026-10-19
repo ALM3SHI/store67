@@ -44,7 +44,8 @@ test.describe("3D products", () => {
   });
 
   test("new products are searchable and can be bought together", async ({ page }) => {
-    await page.goto("/ar");
+    // A page without 3D viewers keeps this test independent of software-WebGL load
+    await page.goto("/ar/track");
     await page.getByRole("button", { name: "بحث" }).click();
     await page.getByTestId("search-input").fill("مساج الراس");
     await expect(page.getByTestId("search-hit").first()).toContainText("مدلّك الرأس 76");

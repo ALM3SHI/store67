@@ -327,7 +327,7 @@ export function FinalCta({ product, buy, t, locale }: { product: ProductView; bu
           <QuickBuy product={buy} />
         </div>
         {product.model3d ? (
-          <Product3D source={product.model3d} poster={posterFor(product)} alt={L(locale, product.nameAr, product.nameEn)} tone="dark" azimuth={2.2} elevation={0.45} showHint={false} sizes="384px" className="mx-auto aspect-square w-full max-w-sm" />
+          <Product3D source={product.model3d} poster={posterFor(product)} alt={L(locale, product.nameAr, product.nameEn)} tone="dark" azimuth={2.2} elevation={0.45} autoRotate={false} showHint={false} sizes="384px" className="mx-auto aspect-square w-full max-w-sm" />
         ) : img ? (
           <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-[28px]">
             <Image src={img.url} alt={L(locale, img.altAr, img.altEn)} fill sizes="384px" className="object-cover" loading="lazy" />
@@ -361,7 +361,7 @@ export function CollectionSection({ products, buys, t, locale }: { products: Pro
             <li key={p.id} className="flex flex-col rounded-[var(--radius-panel)] border border-paper-2 bg-porcelain p-3" data-testid="collection-item">
               <div className="relative aspect-square overflow-hidden rounded-[14px] bg-[radial-gradient(70%_60%_at_50%_40%,#ffffff,#ebe8e2)]">
                 {p.model3d ? (
-                  <Product3D source={p.model3d} poster={posterFor(p)} alt={name} tone="light" sizes="(min-width: 768px) 33vw, 100vw" className="absolute inset-0" />
+                  <Product3D source={p.model3d} poster={posterFor(p)} alt={name} tone="light" autoRotate={false} sizes="(min-width: 768px) 33vw, 100vw" className="absolute inset-0" />
                 ) : p.media[0] ? (
                   <Image src={p.media[0].url} alt={L(locale, p.media[0].altAr, p.media[0].altEn) || name} fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover" />
                 ) : null}

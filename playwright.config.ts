@@ -27,6 +27,9 @@ export default defineConfig({
     baseURL: BASE,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    // CI machines render WebGL in software; reduced motion stops idle auto-rotation
+    // so 3D viewers don't starve the page. Specs that need motion opt back in.
+    reducedMotion: "reduce",
     // Software WebGL so the 3D viewers render the same on CI machines without a GPU
     launchOptions: { executablePath, args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] },
   },

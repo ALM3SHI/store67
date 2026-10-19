@@ -103,7 +103,7 @@ export default async function Catalog({ params, searchParams }: Props) {
               <li key={p.id} className="group flex flex-col" data-testid="catalog-item">
                 <div className="relative aspect-square overflow-hidden rounded-[var(--radius-panel)] bg-[radial-gradient(70%_60%_at_50%_40%,#ffffff,#ebe8e2)]">
                   {p.model3d ? (
-                    <Product3D source={p.model3d} poster={posterFor(p)} alt={name} tone="light" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="absolute inset-0" />
+                    <Product3D source={p.model3d} poster={posterFor(p)} alt={name} tone="light" autoRotate={false} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="absolute inset-0" />
                   ) : img ? (
                     <Link href={`/${locale}/products/${p.slug}`} className="absolute inset-0">
                       <Image src={img.url} alt={(locale === "ar" ? img.altAr : img.altEn) || name} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" priority={i < 3} className="object-cover transition-transform duration-700 group-hover:scale-[1.03]" />

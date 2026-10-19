@@ -14,6 +14,22 @@ import type { Viewer } from "@/lib/three/viewer";
  * - Drag to rotate, tap to interact, arrow keys / Enter for keyboard users
  * - Respects prefers-reduced-motion (no auto-rotation or idle animation)
  */
+function waitForIntro(): Promise<void> {
+  const root = document.documentElement;
+  if (root.dataset.intro !== "play") return Promise.resolve();
+  return new Promise((resolve) => {
+    // …and let its fade-out finish before the heavy WebGL setup starts
+    const done = () => {
+      mo.disconnect();
+      clearTimeout(t);
+      setTimeout(resolve, 500);
+    };
+    const mo = new MutationObserver(() => root.dataset.intro !== "play" && done());
+    mo.observe(root, { attributes: true, attributeFilter: ["data-intro"] });
+    const t = setTimeout(done, 2800);
+  });
+}
+
 export function Product3D({
   source,
   poster,
@@ -61,6 +77,9 @@ export function Product3D({
       creating = true;
       setState((s) => (s === "ready" ? s : "loading"));
       try {
+        // Let the first-visit brand intro finish before compiling shaders
+        await waitForIntro();
+        if (cancelled) return;
         const mod = await import("@/lib/three/viewer");
         if (cancelled) return;
         if (!mod.supportsWebGL()) {
