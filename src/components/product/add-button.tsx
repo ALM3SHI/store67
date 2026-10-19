@@ -45,3 +45,40 @@ export function QuickBuy({ product, variant = "pair" }: { product: BuyProduct; v
     </div>
   );
 }
+
+/** Adds one of each bundle product (first in-stock variant) and opens the cart. */
+export function AddBundle({ products }: { products: BuyProduct[] }) {
+  const { t } = useI18n();
+  const cart = useCart();
+  const picks = products.map((p) => ({ p, v: p.variants.find((x) => x.inStock) }));
+  if (picks.some((x) => !x.v)) return <p className="text-sm text-metal-500">{t.product.bundleUnavailable}</p>;
+  return (
+    <button
+      className="btn btn-ink"
+      data-testid="add-bundle"
+      onClick={() => {
+        picks.forEach(({ p, v }, i) => {
+          if (cart.items.some((it) => it.variantId === v!.id)) return;
+          cart.add(
+            v!.id,
+            1,
+            {
+              slug: p.slug,
+              nameAr: p.nameAr,
+              nameEn: p.nameEn,
+              variantNameAr: p.variants.length > 1 ? v!.nameAr : "",
+              variantNameEn: p.variants.length > 1 ? v!.nameEn : "",
+              imageUrl: p.imageUrl,
+              priceHalalas: v!.priceHalalas,
+              maxQuantity: Math.min(p.maxQtyPerItem, v!.available ?? p.maxQtyPerItem),
+            },
+            { openDrawer: i === picks.length - 1 },
+          );
+        });
+        if (picks.every(({ v }) => cart.items.some((it) => it.variantId === v!.id))) cart.setOpen(true);
+      }}
+    >
+      {t.product.bundleAdd}
+    </button>
+  );
+}

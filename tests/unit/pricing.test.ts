@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTotals, checkCoupon } from "@/services/pricing";
+import { computeTotals, applyOffers, checkCoupon } from "@/services/pricing";
 import { parseSARToHalalas, formatSAR } from "@/lib/money";
 import { normalizeSaudiMobile } from "@/lib/phone";
 
@@ -78,5 +78,45 @@ describe("money & phone helpers", () => {
     expect(normalizeSaudiMobile("٠٥١٢٣٤٥٦٧٨")).toBe("+966512345678");
     expect(normalizeSaudiMobile("0112345678")).toBeNull();
     expect(normalizeSaudiMobile("05123")).toBeNull();
+  });
+});
+
+describe("automatic offers", () => {
+  const A = { variantId: "va", productId: "pa", unitPriceHalalas: 10000, quantity: 1 };
+  const B = { variantId: "vb", productId: "pb", unitPriceHalalas: 5000, quantity: 1 };
+  const qty = { id: "q", nameAr: "كمية", nameEn: "Qty", type: "quantity" as const, productIds: [], minQuantity: 2, percentOff: 10 };
+  const bundle = { id: "b", nameAr: "باقة", nameEn: "Bundle", type: "bundle" as const, productIds: ["pa", "pb"], minQuantity: 1, percentOff: 20 };
+
+  it("quantity offer needs the minimum units", () => {
+    expect(applyOffers([A], [qty]).discountHalalas).toBe(0);
+    expect(applyOffers([{ ...A, quantity: 2 }], [qty])).toEqual({ discountHalalas: 2000, applied: [{ id: "q", nameAr: "كمية", nameEn: "Qty", amountHalalas: 2000 }] });
+    expect(applyOffers([A, B], [{ ...qty, productIds: ["pb"] }]).discountHalalas).toBe(0); // only B counts
+  });
+
+  it("bundle discounts one of each per complete set, cheapest units first", () => {
+    expect(applyOffers([A], [bundle]).discountHalalas).toBe(0);
+    expect(applyOffers([A, B], [bundle]).discountHalalas).toBe(3000);
+    expect(applyOffers([{ ...A, quantity: 3 }, B], [bundle]).discountHalalas).toBe(3000); // one set only
+  });
+
+  it("a line takes the better offer and offers never stack on it", () => {
+    const r = applyOffers([A, B], [qty, bundle]);
+    expect(r.applied.map((a) => a.id)).toEqual(["b"]);
+    expect(r.discountHalalas).toBe(3000);
+  });
+
+  it("coupon applies after offers, and the total never goes negative", () => {
+    const t = computeTotals({
+      lines: [{ variantId: "va", unitPriceHalalas: 10000, quantity: 1 }],
+      offerDiscountHalalas: 2000,
+      coupon: { code: "X", type: "percent", value: 10, maxDiscountHalalas: null },
+      shippingRateHalalas: 0,
+      freeShippingOverHalalas: null,
+      codFeeHalalas: 0,
+      tax: { enabled: false, rateBps: 0, pricesIncludeTax: true },
+    });
+    expect([t.offerDiscountHalalas, t.couponDiscountHalalas, t.discountHalalas, t.totalHalalas]).toEqual([2000, 800, 2800, 7200]);
+    const big = computeTotals({ lines: [{ variantId: "va", unitPriceHalalas: 1000, quantity: 1 }], offerDiscountHalalas: 5000, coupon: { code: "F", type: "fixed", value: 500, maxDiscountHalalas: null }, shippingRateHalalas: 0, freeShippingOverHalalas: null, codFeeHalalas: 0, tax: { enabled: false, rateBps: 0, pricesIncludeTax: true } });
+    expect(big.totalHalalas).toBe(0);
   });
 });

@@ -2,7 +2,8 @@ import "server-only";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema, type DbOrTx } from "@/lib/db";
 import { getSettings } from "@/services/settings";
-import { computeTotals, checkCoupon, type CouponRejection, type Totals } from "@/services/pricing";
+import { computeTotals, checkCoupon, applyOffers, type AppliedOffer, type CouponRejection, type Totals } from "@/services/pricing";
+import { activePromotions, toRule } from "@/services/promotions";
 import { quoteShipping } from "@/services/shipping/registry";
 import { availablePaymentMethods, type AvailableMethod } from "@/services/payments/registry";
 import type { QuoteRequest } from "@/schemas/checkout";
@@ -36,6 +37,8 @@ export type Quote = {
   shipping: { amountHalalas: number | null; source: string | null; etaAr: string; etaEn: string; freeOverHalalas: number | null };
   tax: { enabled: boolean; rateBps: number; pricesIncludeTax: boolean };
   totals: Totals;
+  /** Automatic offers in effect (already inside totals.discountHalalas) */
+  offers: AppliedOffer[];
   paymentMethods: AvailableMethod[];
   codFeeHalalas: number;
   weightGrams: number;
@@ -112,6 +115,12 @@ export async function buildQuote(req: QuoteRequest & { phone?: string }, opts: {
   const sellable = lines.filter((l) => l.quantity > 0);
   const subtotal = sellable.reduce((s2, l) => s2 + l.lineTotalHalalas, 0);
   const weight = sellable.reduce((w, l) => w + l.weightGrams, 0);
+  const offers = sellable.length
+    ? applyOffers(
+        sellable.map((l) => ({ variantId: l.variantId, productId: l.productId, unitPriceHalalas: l.unitPriceHalalas, quantity: l.quantity })),
+        (await activePromotions(conn, now)).map(toRule),
+      )
+    : { discountHalalas: 0, applied: [] };
 
   // Coupon
   let coupon: Quote["coupon"] = null;
@@ -129,7 +138,7 @@ export async function buildQuote(req: QuoteRequest & { phone?: string }, opts: {
           .where(and(eq(schema.couponRedemptions.couponId, c.id), eq(schema.couponRedemptions.phone, req.phone)));
         byCustomer = row?.n ?? 0;
       }
-      const err = checkCoupon(c, { subtotalHalalas: subtotal, now, redemptionsByCustomer: byCustomer });
+      const err = checkCoupon(c, { subtotalHalalas: subtotal - offers.discountHalalas, now, redemptionsByCustomer: byCustomer });
       coupon = { code, applied: !err, error: err, couponId: c.id };
       if (!err) couponRule = { code, type: c.type, value: c.value, maxDiscountHalalas: c.maxDiscountHalalas };
     }
@@ -143,6 +152,7 @@ export async function buildQuote(req: QuoteRequest & { phone?: string }, opts: {
 
   const totals = computeTotals({
     lines: sellable.map((l) => ({ variantId: l.variantId, unitPriceHalalas: l.unitPriceHalalas, quantity: l.quantity })),
+    offerDiscountHalalas: offers.discountHalalas,
     coupon: couponRule,
     shippingRateHalalas: ship ? ship.amountHalalas : null,
     freeShippingOverHalalas: s.shipping.freeOverHalalas,
@@ -163,6 +173,7 @@ export async function buildQuote(req: QuoteRequest & { phone?: string }, opts: {
     },
     tax,
     totals,
+    offers: offers.applied,
     paymentMethods: availablePaymentMethods(s.payments, totals.totalHalalas),
     codFeeHalalas: s.payments.codEnabled ? s.payments.codFeeHalalas : 0,
     weightGrams: weight,

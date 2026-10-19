@@ -192,4 +192,30 @@ test.describe("store features", () => {
     await expect(page.getByTestId("return-status")).toContainText("مقبول");
     await expect(page.getByText("أرسل المنتج مع مندوب سمسا")).toBeVisible();
   });
+
+  test("offers: admin creates a bundle, product page shows it, the cart applies it automatically", async ({ page }) => {
+    await adminLogin(page);
+    await page.goto("/admin/coupons");
+    const form = page.getByTestId("promotion-form").first();
+    await form.locator('input[name="nameAr"]').fill("باقة العناية والمحفظة");
+    await form.locator('select[name="type"]').selectOption("bundle");
+    await form.locator('input[name="percentOff"]').fill("15");
+    await form.getByLabel("مدلّك الرأس 76").check();
+    await form.getByLabel("المحفظة الذكية 76").check();
+    await form.getByRole("button", { name: "إنشاء العرض" }).click();
+    await expect(form.getByTestId("form-message")).toContainText("حُفظ العرض");
+
+    await page.goto("/ar/products/scalp-massager-76");
+    const bundle = page.getByTestId("bundle").filter({ hasText: "باقة العناية والمحفظة" });
+    await expect(bundle).toBeVisible();
+    await expect(page.getByTestId("related")).toBeVisible();
+    await bundle.getByTestId("add-bundle").click();
+    const offer = page.getByTestId("offer-line").filter({ hasText: "باقة العناية والمحفظة" });
+    await expect(offer).toBeVisible();
+
+    // switch it off so other tests see normal prices
+    await page.goto("/admin/coupons");
+    await page.getByTestId("promotions").locator("details").filter({ hasText: "باقة العناية والمحفظة" }).getByRole("button", { name: "حذف" }).click();
+    await expect(page.getByTestId("promotions").locator("details").filter({ hasText: "باقة العناية والمحفظة" })).toHaveCount(0);
+  });
 });

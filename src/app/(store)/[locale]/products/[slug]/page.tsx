@@ -3,7 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDictionary } from "@/i18n";
 import { asLocale } from "@/i18n/config";
-import { getPublishedProduct, listApprovedReviews } from "@/services/catalog";
+import { getPublishedProduct, listApprovedReviews, listPublishedProducts } from "@/services/catalog";
+import { promotionsForProduct } from "@/services/promotions";
+import { recommendationsFor } from "@/services/recommendations";
+import { OfferNotes, BundleSection, RelatedSection } from "@/components/product/related";
 import { getShell } from "@/services/storefront";
 import { BenefitsSection, StepsSection, SpecsSection, PromiseStrip, FaqSection, ReviewsSection, FinalCta } from "@/components/product/sections";
 import { Gallery } from "@/components/product/gallery";
@@ -38,7 +41,8 @@ export default async function ProductPage({ params }: Props) {
   const t = getDictionary(locale);
   const product = await getPublishedProduct(slug);
   if (!product) notFound();
-  const [shell, reviews] = await Promise.all([getShell(locale), listApprovedReviews(product.id)]);
+  const [shell, reviews, all, offers] = await Promise.all([getShell(locale), listApprovedReviews(product.id), listPublishedProducts(), promotionsForProduct(product.id)]);
+  const recs = await recommendationsFor(product, all);
   const buy = toBuyProduct(product, shell.settings, t);
   const name = locale === "ar" ? product.nameAr : product.nameEn;
   const showDrafts = env.appEnv !== "production";
@@ -82,6 +86,7 @@ export default async function ProductPage({ params }: Props) {
           </div>
           <p className="max-w-[56ch] leading-8 text-metal-700">{locale === "ar" ? product.shortAr : product.shortEn}</p>
           <BuyBox product={buy} tone="light" showShare />
+          <OfferNotes offers={offers} t={t} locale={locale} />
           {product.highlights.length ? (
             <div className="border-t border-paper-2 pt-6">
               <h2 className="text-base font-semibold">{t.product.highlights}</h2>
@@ -98,12 +103,14 @@ export default async function ProductPage({ params }: Props) {
         </div>
       </section>
 
+      <BundleSection currentId={product.id} bundles={offers.filter((o) => o.type === "bundle")} products={all} buys={all.map((p) => toBuyProduct(p, shell.settings, t))} t={t} locale={locale} />
       <PromiseStrip settings={shell.settings} t={t} locale={locale} onlinePaymentsLive={shell.onlinePaymentsLive} codEnabled={shell.codEnabled} />
       <BenefitsSection product={product} t={t} locale={locale} />
       <StepsSection product={product} t={t} locale={locale} />
       <SpecsSection product={product} t={t} locale={locale} showDrafts={showDrafts} />
       <FaqSection faqs={product.faqs} t={t} locale={locale} />
       <ReviewsSection reviews={reviews} product={product} t={t} locale={locale} />
+      <RelatedSection kind={recs.kind} products={recs.products} buys={recs.products.map((p) => toBuyProduct(p, shell.settings, t))} t={t} locale={locale} />
       <FinalCta product={product} buy={buy} t={t} locale={locale} />
     </>
   );

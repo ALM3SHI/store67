@@ -438,6 +438,8 @@ export const orders = pgTable(
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     /** Starts the return window */
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    /** Automatic offers applied at checkout (their total is part of discountHalalas) */
+    offers: jsonb("offers").$type<{ id: string; nameAr: string; nameEn: string; amountHalalas: number }[]>().notNull().default([]),
     ...timestamps,
   },
   (t) => [
@@ -700,3 +702,19 @@ export const returnRequests = pgTable(
   },
   (t) => [index("return_requests_order_idx").on(t.orderId), index("return_requests_status_idx").on(t.status)],
 );
+
+/* ───────────────────────── Automatic offers */
+export const promotions = pgTable("promotions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  nameAr: text("name_ar").notNull(),
+  nameEn: text("name_en").notNull(),
+  type: text("type").notNull(), // quantity | bundle
+  /** quantity: products that count (empty = all); bundle: the products in the set */
+  productIds: jsonb("product_ids").$type<string[]>().notNull().default([]),
+  minQuantity: integer("min_quantity").notNull().default(2),
+  percentOff: integer("percent_off").notNull(),
+  active: boolean("active").notNull().default(true),
+  startsAt: timestamp("starts_at", { withTimezone: true }),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  ...timestamps,
+});

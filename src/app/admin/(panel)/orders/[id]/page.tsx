@@ -84,7 +84,8 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
             </ul>
             <dl className="mt-3 space-y-1 border-t border-paper-2 pt-3 text-sm">
               <div className="flex justify-between"><dt>المجموع الفرعي</dt><dd><Money halalas={o.subtotalHalalas} locale="ar" /></dd></div>
-              {o.discountHalalas ? <div className="flex justify-between text-ok"><dt>خصم {o.couponCode ?? ""}</dt><dd>− <Money halalas={o.discountHalalas} locale="ar" /></dd></div> : null}
+              {o.offers.map((x) => <div key={x.id} className="flex justify-between text-ok"><dt>عرض: {x.nameAr}</dt><dd>− <Money halalas={x.amountHalalas} locale="ar" /></dd></div>)}
+              {o.discountHalalas - o.offers.reduce((n, x) => n + x.amountHalalas, 0) > 0 ? <div className="flex justify-between text-ok"><dt>خصم {o.couponCode ?? ""}</dt><dd>− <Money halalas={o.discountHalalas - o.offers.reduce((n, x) => n + x.amountHalalas, 0)} locale="ar" /></dd></div> : null}
               <div className="flex justify-between"><dt>الشحن ({o.shippingMethod === "aramex" ? "أرامكس" : "يدوي"})</dt><dd><Money halalas={o.shippingHalalas} locale="ar" /></dd></div>
               {o.codFeeHalalas ? <div className="flex justify-between"><dt>رسوم الدفع عند الاستلام</dt><dd><Money halalas={o.codFeeHalalas} locale="ar" /></dd></div> : null}
               {o.taxHalalas ? <div className="flex justify-between"><dt>ضريبة القيمة المضافة ({o.taxRateBps / 100}%{o.pricesIncludeTax ? " شاملة" : ""})</dt><dd><Money halalas={o.taxHalalas} locale="ar" /></dd></div> : null}

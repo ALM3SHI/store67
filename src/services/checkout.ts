@@ -181,6 +181,7 @@ export async function placeOrder(raw: unknown, opts: { db?: DbOrTx; now?: Date; 
         taxRateBps: quote.tax.enabled ? quote.tax.rateBps : 0,
         pricesIncludeTax: quote.tax.pricesIncludeTax,
         couponCode: quote.coupon?.applied ? quote.coupon.code : null,
+        offers: quote.offers,
         shippingMethod: quote.shipping.source === "aramex" ? "aramex" : "manual",
         customerNote: input.address.notes || null,
         reservedUntil: isCod ? null : new Date(now.getTime() + commerce.reservationMinutes * 60000),

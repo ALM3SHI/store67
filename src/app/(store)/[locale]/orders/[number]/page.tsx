@@ -92,6 +92,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
     redirect(`${selfUrl}&return=cancelled#returns`);
   }
 
+  const offerTotal = order.offers.reduce((n, o) => n + o.amountHalalas, 0);
   const paid = order.paymentStatus === "paid" || order.paymentStatus === "cod_pending" || order.paymentStatus === "cod_collected";
   const banner = (() => {
     if (order.status === "cancelled") return { icon: Ban, tone: "text-metal-700 bg-paper-2", title: t.status.cancelled, body: "" };
@@ -172,7 +173,8 @@ export default async function OrderPage({ params, searchParams }: Props) {
           </ul>
           <dl className="mt-3 space-y-1.5 border-t border-paper-2 pt-3 text-[0.95rem]">
             <div className="flex justify-between"><dt className="text-metal-700">{t.cart.subtotal}</dt><dd><Money halalas={order.subtotalHalalas} locale={locale} /></dd></div>
-            {order.discountHalalas > 0 ? <div className="flex justify-between text-ok"><dt>{t.cart.discount}{order.couponCode ? ` (${order.couponCode})` : ""}</dt><dd>− <Money halalas={order.discountHalalas} locale={locale} /></dd></div> : null}
+            {order.offers.map((o) => <div key={o.id} className="flex justify-between gap-3 text-ok"><dt>{locale === "ar" ? o.nameAr : o.nameEn}</dt><dd className="shrink-0">− <Money halalas={o.amountHalalas} locale={locale} /></dd></div>)}
+            {order.discountHalalas - offerTotal > 0 ? <div className="flex justify-between text-ok"><dt>{t.cart.discount}{order.couponCode ? ` (${order.couponCode})` : ""}</dt><dd>− <Money halalas={order.discountHalalas - offerTotal} locale={locale} /></dd></div> : null}
             <div className="flex justify-between"><dt className="text-metal-700">{t.cart.shipping}</dt><dd>{order.shippingHalalas === 0 ? t.cart.shippingFree : <Money halalas={order.shippingHalalas} locale={locale} />}</dd></div>
             {order.codFeeHalalas > 0 ? <div className="flex justify-between"><dt className="text-metal-700">{t.cart.codFee}</dt><dd><Money halalas={order.codFeeHalalas} locale={locale} /></dd></div> : null}
             {order.taxHalalas > 0 ? <div className="flex justify-between text-sm text-metal-500"><dt>{order.pricesIncludeTax ? t.cart.taxIncluded : t.cart.tax}</dt><dd><Money halalas={order.taxHalalas} locale={locale} /></dd></div> : null}

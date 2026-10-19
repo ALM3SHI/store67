@@ -50,6 +50,13 @@
       "when": 1792440545716,
       "tag": "0006_returns",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792441577638,
+      "tag": "0007_promotions",
+      "breakpoints": true
     }
   ]
 }

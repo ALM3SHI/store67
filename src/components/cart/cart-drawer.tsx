@@ -174,11 +174,19 @@ export function CartDrawer() {
                     <Money halalas={subtotal} locale={locale} />
                   </dd>
                 </div>
-                {q && q.totals.discountHalalas > 0 ? (
+                {q?.offers.map((o) => (
+                  <div key={o.id} className="flex justify-between gap-3 text-ok" data-testid="offer-line">
+                    <dt>{locale === "ar" ? o.nameAr : o.nameEn}</dt>
+                    <dd className="shrink-0">
+                      − <Money halalas={o.amountHalalas} locale={locale} />
+                    </dd>
+                  </div>
+                ))}
+                {q && q.totals.couponDiscountHalalas > 0 ? (
                   <div className="flex justify-between text-ok">
                     <dt>{t.cart.discount}</dt>
                     <dd>
-                      − <Money halalas={q.totals.discountHalalas} locale={locale} />
+                      − <Money halalas={q.totals.couponDiscountHalalas} locale={locale} />
                     </dd>
                   </div>
                 ) : null}
