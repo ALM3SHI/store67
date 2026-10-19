@@ -51,9 +51,22 @@ export function BuyBox({ product, tone = "light", showShare = false }: { product
   useEffect(() => {
     const el = actionsRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setStickyVisible(!e!.isIntersecting && e!.boundingClientRect.top < 0), { threshold: 0 });
+    // Shown once the purchase buttons have scrolled above the viewport. A cheap
+    // rAF-throttled scroll check backs up the observer, whose callbacks some
+    // browsers delay while a WebGL canvas keeps the GPU busy.
+    const check = () => setStickyVisible(el.getBoundingClientRect().bottom < 0);
+    const io = new IntersectionObserver(check, { threshold: 0 });
     io.observe(el);
-    return () => io.disconnect();
+    let queued = 0;
+    const onScroll = () => {
+      if (!queued) queued = requestAnimationFrame(() => ((queued = 0), check()));
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      if (queued) cancelAnimationFrame(queued);
+    };
   }, []);
 
   const snapshot = () => ({

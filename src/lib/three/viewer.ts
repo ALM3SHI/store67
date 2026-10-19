@@ -85,16 +85,37 @@ async function loadModel(source: string, o: ViewerOptions): Promise<BuiltModel> 
   return { group: wrap, update: mixer ? (dt) => mixer.update(dt) : undefined };
 }
 
+/**
+ * Set once any viewer finds that WebGL runs without a GPU (software rendering)
+ * or draws too slowly. Every viewer created afterwards starts in low-power mode.
+ */
+let lowPerf = false;
+const SOFTWARE_GL = /swiftshader|llvmpipe|softpipe|software|basic render driver|mesa offscreen/i;
+
+function detectSoftwareGL(renderer: THREE.WebGLRenderer) {
+  try {
+    const gl = renderer.getContext();
+    const ext = gl.getExtension("WEBGL_debug_renderer_info");
+    const name = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    return SOFTWARE_GL.test(name);
+  } catch {
+    return false;
+  }
+}
+
 export async function createViewer(canvas: HTMLCanvasElement, o: ViewerOptions): Promise<Viewer> {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "low-power", preserveDrawingBuffer: o.preserveDrawingBuffer ?? false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !lowPerf, alpha: true, powerPreference: "low-power", preserveDrawingBuffer: o.preserveDrawingBuffer ?? false });
+  if (!lowPerf && detectSoftwareGL(renderer)) lowPerf = true;
+  renderer.setPixelRatio(lowPerf ? 1 : Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = o.tone === "dark" ? 1.05 : 0.95;
 
   const scene = new THREE.Scene();
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  // The reflection environment is the most expensive part to build; software
+  // WebGL takes seconds for it, so low-power mode lights the model with lamps only.
+  const pmrem = lowPerf ? null : new THREE.PMREMGenerator(renderer);
+  const envTex = pmrem ? pmrem.fromScene(new RoomEnvironment(), 0.04).texture : null;
   scene.environment = envTex;
 
   const key = new THREE.DirectionalLight("#ffffff", o.tone === "dark" ? 1.6 : 1.2);
@@ -103,14 +124,14 @@ export async function createViewer(canvas: HTMLCanvasElement, o: ViewerOptions):
   const rim = new THREE.DirectionalLight(o.accent, o.tone === "dark" ? 1.1 : 0.4);
   rim.position.set(-4, 2, -3);
   scene.add(rim);
-  scene.add(new THREE.HemisphereLight("#ffffff", o.tone === "dark" ? "#0a0e14" : "#d9d4cb", 0.6));
+  scene.add(new THREE.HemisphereLight("#ffffff", o.tone === "dark" ? "#0a0e14" : "#d9d4cb", lowPerf ? 2.2 : 0.6));
 
   let model: BuiltModel;
   try {
     model = await loadModel(o.source, o);
   } catch (e) {
     renderer.dispose();
-    pmrem.dispose();
+    pmrem?.dispose();
     throw e;
   }
   scene.add(model.group);
@@ -141,7 +162,7 @@ export async function createViewer(canvas: HTMLCanvasElement, o: ViewerOptions):
   controls.dampingFactor = 0.08;
   controls.minPolarAngle = 0.35;
   controls.maxPolarAngle = 1.45;
-  controls.autoRotate = o.autoRotate && !o.reducedMotion;
+  controls.autoRotate = o.autoRotate && !o.reducedMotion && !lowPerf;
   controls.autoRotateSpeed = 1.1;
   controls.enabled = o.interactive;
   // Let the page scroll vertically on phones; horizontal drags rotate the model.
@@ -189,22 +210,52 @@ export async function createViewer(canvas: HTMLCanvasElement, o: ViewerOptions):
   let last = performance.now();
   let awakeUntil = 0;
   let inFrame = false;
+  // Frame-cost guard: without GPU acceleration (software WebGL) a frame can take
+  // 100ms+ and a continuous loop starves the page — buttons stop responding.
+  // When frames are consistently slow we stop auto-rotation, drop the pixel
+  // ratio, and only render while the visitor is actually moving the model.
+  let slowFrames = 0;
+  let measured = 0;
+  let degraded = lowPerf;
+  if (degraded) canvas.dataset.perf = "low";
+  const degrade = () => {
+    if (degraded) return;
+    degraded = true;
+    lowPerf = true;
+    controls.autoRotate = false;
+    renderer.setPixelRatio(1);
+    resize();
+    awakeUntil = 0;
+    canvas.dataset.perf = "low";
+  };
   const frame = () => {
     raf = 0;
     inFrame = true;
     const now = performance.now();
-    const dt = Math.min((now - last) / 1000, 0.05);
+    const gap = now - last;
+    const dt = Math.min(gap / 1000, 0.05);
     last = now;
     elapsed += dt;
     controls.update(dt);
     model.update?.(dt, elapsed);
     renderer.render(scene, camera);
     inFrame = false;
+    const cost = performance.now() - now;
+    // Only judge continuous frames (gap < 250ms), not the first one after a pause.
+    if (!degraded && gap < 250) {
+      measured++;
+      if (cost > 45 || gap > 90) slowFrames++;
+      if (measured >= 12 && slowFrames / measured > 0.6) degrade();
+      if (measured > 60) {
+        measured = 0;
+        slowFrames = 0;
+      }
+    }
     const moving = controls.autoRotate || performance.now() < awakeUntil;
     if (visible && !document.hidden && moving) raf = requestAnimationFrame(frame);
   };
   const wake = () => {
-    awakeUntil = performance.now() + 4000;
+    awakeUntil = performance.now() + (degraded ? 600 : 4000);
     // Inside a frame the loop reschedules itself; never queue a second callback
     if (!raf && !inFrame && visible && !document.hidden) {
       last = performance.now();
@@ -259,8 +310,8 @@ export async function createViewer(canvas: HTMLCanvasElement, o: ViewerOptions):
       canvas.removeEventListener("pointerup", onUp);
       controls.dispose();
       disposeObject(scene);
-      envTex.dispose();
-      pmrem.dispose();
+      envTex?.dispose();
+      pmrem?.dispose();
       renderer.dispose();
     },
   };

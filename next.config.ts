@@ -52,6 +52,17 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // `npm run dev` only: let phones/other PCs on the home network open the store
+  // by IP (e.g. http://192.168.1.20:3000). Without this Next.js blocks the page's
+  // scripts on those addresses and no button responds. Ignored in production.
+  allowedDevOrigins: [
+    "127.0.0.1",
+    "192.168.*.*",
+    "10.*.*.*",
+    "172.*.*.*",
+    "*.local",
+    ...(process.env.DEV_ALLOWED_ORIGINS ?? "").split(",").map((h) => h.trim()).filter(Boolean),
+  ],
   experimental: {
     // Business documents (PDF up to 10MB) are uploaded through a server action
     serverActions: { bodySizeLimit: "11mb" },
