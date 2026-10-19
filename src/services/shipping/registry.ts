@@ -3,6 +3,7 @@ import { aramexShipping } from "./aramex";
 import { manualShipping } from "./manual";
 import type { ShippingQuote } from "./types";
 import type { Settings } from "@/services/settings";
+import { reportError } from "@/services/monitoring";
 
 export function shippingIntegrationStatus() {
   return { aramex: aramexShipping.isConfigured() };
@@ -25,7 +26,7 @@ export async function quoteShipping(args: { city: string | undefined; weightGram
     try {
       return await aramexShipping.quote({ city: args.city, weightGrams: args.weightGrams, settings });
     } catch (e) {
-      console.warn("[shipping] Aramex rate failed, using flat rate:", e instanceof Error ? e.message : e);
+      await reportError("shipping", e, { path: "Aramex rate (fell back to flat rate)" });
       const flat = await manualShipping.quote({ city: args.city, weightGrams: args.weightGrams, settings });
       return { ...flat, source: "flat_fallback" };
     }

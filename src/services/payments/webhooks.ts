@@ -4,6 +4,7 @@ import { hmacSha256, safeEqual } from "@/lib/crypto";
 import { applyPaymentState, findPaymentByRef, type ApplyResult } from "./apply";
 import { moyasarProvider, toState, type MoyasarPayment } from "./moyasar";
 import type { ProviderPaymentState } from "./types";
+import { reportError } from "@/services/monitoring";
 
 export type WebhookOutcome = { status: number; result: ApplyResult | "unauthorized" | "ignored" | "invalid" | "not_configured" };
 
@@ -31,7 +32,7 @@ export async function handleMoyasarWebhook(body: unknown): Promise<WebhookOutcom
   try {
     state = await moyasarProvider.fetchState(invoiceId!, b.data.id);
   } catch (e) {
-    console.error("[moyasar webhook] verification fetch failed:", e instanceof Error ? e.message : e);
+    await reportError("payment", e, { path: "Moyasar webhook: verification fetch" });
     return { status: 502, result: "invalid" }; // non-2xx → Moyasar retries later
   }
   const result = await applyPaymentState({

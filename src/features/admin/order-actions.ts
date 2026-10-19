@@ -14,6 +14,9 @@ import { getSetting } from "@/services/settings";
 import { parseSARToHalalas } from "@/lib/money";
 import type { ActionState } from "@/components/admin/ui";
 import ar from "@/i18n/ar";
+import { notifyOrder } from "@/services/notify";
+import { runAfterResponse } from "@/lib/after";
+import type { OrderEmailKind } from "@/services/notify/templates";
 
 const idSchema = z.uuid();
 const done = (id: string, message: string): ActionState => {
@@ -42,6 +45,10 @@ export async function updateOrderStatus(_: ActionState, fd: FormData): Promise<A
     await addOrderEvent(tx, { orderId: id, type: "status", message: `تغيّرت الحالة إلى: ${ar.status[to]}`, internal: !notify && to !== "shipped" && to !== "delivered" && to !== "cancelled", actorId: admin.userId, actorName: admin.name });
   });
   await audit({ actorId: admin.userId, actorEmail: admin.email, action: "order.status", entity: "order", entityId: id, meta: { from: o.status, to } });
+  const mailKind: OrderEmailKind | null =
+    to === "shipped" ? "order_shipped" : to === "delivered" ? "order_delivered" : to === "cancelled" && !["pending_payment", "payment_failed"].includes(o.status) ? "order_cancelled" : null;
+  const sendEmail = fd.has("emailToggle") ? fd.get("email") === "on" : true;
+  if (mailKind && sendEmail) await runAfterResponse(() => notifyOrder(id, mailKind));
   const warn = to === "cancelled" && o.paymentStatus === "paid" ? " الطلب مدفوع: نفّذ الاسترجاع من قسم الدفع." : "";
   return done(id, "حُدّثت حالة الطلب." + warn);
 }
@@ -79,6 +86,7 @@ export async function saveManualShipment(_: ActionState, fd: FormData): Promise<
     await addOrderEvent(tx, { orderId: id, type: "shipment", message: `شُحن الطلب${carrier ? ` عبر ${carrier}` : ""} — رقم التتبع ${tracking}`, internal: false, actorId: admin.userId, actorName: admin.name });
   });
   await audit({ actorId: admin.userId, actorEmail: admin.email, action: "order.shipment_manual", entity: "order", entityId: id, meta: { tracking } });
+  if (o.status !== "shipped") await runAfterResponse(() => notifyOrder(id, "order_shipped"));
   return done(id, "حُفظت بيانات الشحنة وأصبح الطلب «تم الشحن».");
 }
 
@@ -123,6 +131,7 @@ export async function createAramexShipment(_: ActionState, fd: FormData): Promis
       await addOrderEvent(tx, { orderId: id, type: "shipment", message: `أُنشئت شحنة أرامكس — رقم التتبع ${res.trackingNumber}`, internal: false, actorId: admin.userId, actorName: admin.name });
     });
     await audit({ actorId: admin.userId, actorEmail: admin.email, action: "order.shipment_aramex", entity: "order", entityId: id, meta: { tracking: res.trackingNumber } });
+    await runAfterResponse(() => notifyOrder(id, "order_shipped"));
     return done(id, `أُنشئت الشحنة: ${res.trackingNumber}`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "خطأ غير معروف";
@@ -147,6 +156,7 @@ export async function syncShipment(_: ActionState, fd: FormData): Promise<Action
       if (o && o.status === "shipped") {
         await db.update(schema.orders).set({ status: "delivered", updatedAt: new Date() }).where(eq(schema.orders.id, id));
         await addOrderEvent(db, { orderId: id, type: "status", message: "تم تسليم الطلب", internal: false });
+        await runAfterResponse(() => notifyOrder(id, "order_delivered"));
       }
     }
     return done(id, `حُدّثت حالة الشحنة (${r.events.length} تحديث).`);
@@ -216,4 +226,29 @@ export async function refreshPaymentStatus(_: ActionState, fd: FormData): Promis
   } catch (e) {
     return { ok: false, message: `تعذّر الاتصال بالبوابة: ${(e instanceof Error ? e.message : "").slice(0, 160)}` };
   }
+}
+
+const resendKinds = ["order_confirmed", "order_shipped", "order_delivered", "order_cancelled"] as const;
+
+/** Re-sends a customer email (e.g. after fixing email settings or a typo in the address). */
+export async function resendOrderEmail(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireAdmin("orders.update");
+  const id = idSchema.parse(fd.get("orderId"));
+  const kind = z.enum(resendKinds).parse(fd.get("kind"));
+  const db = await getDb();
+  const [o] = await db.select().from(schema.orders).where(eq(schema.orders.id, id));
+  if (!o) return { ok: false, message: "الطلب غير موجود." };
+  if (!o.email) return { ok: false, message: "لم يُدخل العميل بريدًا إلكترونيًا لهذا الطلب." };
+  await notifyOrder(id, kind, { force: true, only: "customer" });
+  const [last] = await db
+    .select()
+    .from(schema.notifications)
+    .where(eq(schema.notifications.orderId, id))
+    .orderBy(desc(schema.notifications.updatedAt))
+    .limit(1);
+  await audit({ actorId: admin.userId, actorEmail: admin.email, action: "order.email_resend", entity: "order", entityId: id, meta: { kind } });
+  revalidatePath(`/admin/orders/${id}`);
+  if (last?.status === "sent") return { ok: true, message: "أُرسل البريد للعميل." };
+  if (last?.error === "not_configured") return { ok: false, message: "البريد غير مهيأ: أضف RESEND_API_KEY و EMAIL_FROM في متغيرات البيئة." };
+  return { ok: false, message: `تعذّر الإرسال: ${last?.error ?? "غير معروف"}` };
 }

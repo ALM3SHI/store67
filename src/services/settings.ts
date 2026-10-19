@@ -108,6 +108,22 @@ export const launchSettingsSchema = z.object({
   productDataReviewed: z.boolean().default(false),
 });
 
+export const notificationSettingsSchema = z.object({
+  /** Email the customer (when they gave an email) on confirm / ship / deliver / cancel */
+  customerEmails: z.boolean().default(true),
+  /** Comma-separated addresses that receive new-order and error alerts */
+  adminEmails: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((v) => v === "" || v.split(",").every((e) => z.email().safeParse(e.trim()).success), "عناوين بريد غير صالحة (افصل بينها بفاصلة)")
+    .default(""),
+  /** New paid / COD order → admin email + Telegram */
+  newOrderAlerts: z.boolean().default(true),
+  /** Server errors → admin email + Telegram (at most once per error per hour) */
+  errorAlerts: z.boolean().default(true),
+});
+
 export const settingSchemas = {
   store: storeSettingsSchema,
   theme: themeSettingsSchema,
@@ -118,6 +134,7 @@ export const settingSchemas = {
   seo: seoSettingsSchema,
   analytics: analyticsSettingsSchema,
   launch: launchSettingsSchema,
+  notifications: notificationSettingsSchema,
 } as const;
 
 export type SettingKey = keyof typeof settingSchemas;

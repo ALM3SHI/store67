@@ -1,4 +1,5 @@
 import "server-only";
+import { emailConfigured, telegramConfigured } from "@/services/notify";
 import { and, eq, gte, inArray, lte, sql, desc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getAllSettings } from "@/services/settings";
@@ -93,6 +94,9 @@ export async function launchReadiness(): Promise<ReadinessItem[]> {
     { key: "images", label: "صور المنتج الحقيقية مرفوعة", ok: (media[0]?.n ?? 0) === 0, hint: "الصور الحالية توضيحية. ارفع صور المنتج الفعلي.", href: "/admin/products" },
     { key: "policies", label: "صفحات السياسات مراجعة", ok: pages.every((p) => p.reviewed), hint: `${pages.filter((p) => !p.reviewed).length} صفحة لم تُراجع بعد.`, href: "/admin/pages" },
     { key: "docs", label: "الوثائق التجارية مدخلة وسارية", ok: validDocs.length > 0 && expired.length === 0, hint: expired.length ? `${expired.length} وثيقة منتهية الصلاحية.` : "أدخل السجل التجاري وتوثيق المتجر.", href: "/admin/documents" },
+    { key: "storage", label: "تخزين الصور سحابي (Supabase Storage)", ok: env.storage.driver === "supabase", hint: "على Vercel لا يبقى القرص المحلي؛ اضبط STORAGE_DRIVER=supabase.", href: "/admin/settings#integrations" },
+    { key: "email", label: "بريد العملاء مهيأ (Resend)", ok: emailConfigured() && settings.notifications.customerEmails, hint: "أضف RESEND_API_KEY و EMAIL_FROM حتى يصل العميل تأكيد الطلب ورقم التتبع.", href: "/admin/settings#notifications" },
+    { key: "alerts", label: "تنبيهات الطلبات الجديدة تصلك", ok: settings.notifications.newOrderAlerts && (telegramConfigured() || (emailConfigured() && settings.notifications.adminEmails !== "")), hint: "اربط تيليجرام أو أضف بريد الفريق ثم أرسل تنبيهًا تجريبيًا.", href: "/admin/settings#notifications" },
     { key: "contact", label: "بيانات التواصل مدخلة", ok: Boolean(settings.store.contactEmail || settings.store.contactPhone || settings.store.whatsapp), hint: "أضف بريدًا أو هاتفًا أو واتساب.", href: "/admin/settings#store" },
   ];
 }

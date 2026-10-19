@@ -2,8 +2,9 @@ import "server-only";
 import { and, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 import { getDb, schema, type DbOrTx, type Tx } from "@/lib/db";
 import { brand } from "@/config/brand";
-import { env, serverSecret } from "@/config/env";
-import { hmacSha256, orderNumber, sha256 } from "@/lib/crypto";
+import { env } from "@/config/env";
+import { orderNumber, sha256 } from "@/lib/crypto";
+import { accessTokenFor, orderUrl } from "@/services/order-links";
 import { randomUUID } from "node:crypto";
 import { checkoutSchema, type CheckoutData } from "@/schemas/checkout";
 import { buildQuote } from "@/services/quote";
@@ -11,6 +12,9 @@ import { getSettings } from "@/services/settings";
 import { addOrderEvent, expireStaleOrders, releaseOrderStock } from "@/services/orders";
 import { getOnlineProvider } from "@/services/payments/registry";
 import { cityLabel } from "@/lib/saudi-cities";
+import { notifyOrder } from "@/services/notify";
+import { runAfterResponse } from "@/lib/after";
+import { reportError } from "@/services/monitoring";
 
 export type CheckoutErrorCode =
   | "invalid_input"
@@ -40,17 +44,7 @@ export type CheckoutResult = {
   totalHalalas: number;
 };
 
-/**
- * Guest access token for an order. Deterministic for (order, idempotency key)
- * so a retried checkout request gets the same link; only its hash is stored.
- */
-export function accessTokenFor(orderId: string, idempotencyKey: string) {
-  return Buffer.from(hmacSha256(serverSecret(), `order-access:${orderId}:${idempotencyKey}`), "hex").toString("base64url");
-}
-
-export function orderUrl(locale: string, number: string, token: string) {
-  return `${env.appUrl}/${locale}/orders/${encodeURIComponent(number)}?t=${encodeURIComponent(token)}`;
-}
+export { accessTokenFor, orderUrl } from "@/services/order-links";
 
 /**
  * Creates an order from untrusted input. Prices, stock, discounts, shipping
@@ -238,6 +232,7 @@ export async function placeOrder(raw: unknown, opts: { db?: DbOrTx; now?: Date }
   });
 
   if (isCod) {
+    await runAfterResponse(() => notifyOrder(order.id, "order_confirmed", { db: opts.db }));
     return { orderNumber: order.number, accessToken: token, redirectUrl: orderUrl(order.locale, order.number, token), totalHalalas: order.totalHalalas };
   }
 
@@ -281,7 +276,7 @@ export async function startPaymentSession(orderId: string, accessToken: string, 
     await conn.update(schema.orders).set({ paymentStatus: "pending", updatedAt: new Date() }).where(eq(schema.orders.id, order.id));
     return session.checkoutUrl;
   } catch (e) {
-    console.error("[checkout] payment session failed:", e instanceof Error ? e.message : e);
+    await reportError("payment", e, { path: "checkout: create payment session" });
     await conn
       .update(schema.payments)
       .set({ status: "failed", failureReason: "session_error", updatedAt: new Date() })

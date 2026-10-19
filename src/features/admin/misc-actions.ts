@@ -1,9 +1,10 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { z, ZodError } from "zod";
 import { getDb, schema } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth/session";
+import { currentSessionHash, requireAdmin } from "@/lib/auth/session";
+import { sendAdminAlert } from "@/services/notify";
 import { audit } from "@/services/audit";
 import { saveSetting, settingSchemas, type SettingKey } from "@/services/settings";
 import { parseSARToHalalas } from "@/lib/money";
@@ -213,8 +214,27 @@ export async function changeOwnPassword(_: ActionState, fd: FormData): Promise<A
   const admin = await requireAdmin("dashboard.view");
   const pw = String(fd.get("password") ?? "");
   if (pw.length < 12) return { ok: false, message: "كلمة المرور 12 حرفًا على الأقل." };
+  if (pw.length > 200) return { ok: false, message: "كلمة المرور طويلة جدًا." };
   const db = await getDb();
   await db.update(schema.adminUsers).set({ passwordHash: await hashPassword(pw), updatedAt: new Date() }).where(eq(schema.adminUsers.id, admin.userId));
+  // Sign out every other device that was using the old password.
+  const current = await currentSessionHash();
+  await db.delete(schema.adminSessions).where(and(eq(schema.adminSessions.userId, admin.userId), current ? ne(schema.adminSessions.tokenHash, current) : undefined));
   await audit({ actorId: admin.userId, actorEmail: admin.email, action: "user.password_change", entity: "admin_user", entityId: admin.userId });
   return { ok: true, message: "تغيّرت كلمة المرور." };
+}
+
+/* ───────────── Notifications */
+export async function sendTestNotification(): Promise<ActionState> {
+  const admin = await requireAdmin("settings.manage");
+  const text = `✅ رسالة تجريبية من لوحة التحكم.\nأرسلها: ${admin.name}\nإن وصلتك فالتنبيهات تعمل.`;
+  const results = await sendAdminAlert("test", { subject: "رسالة تجريبية — تنبيهات المتجر", text, html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif">${text.replace(/\n/g, "<br>")}</div>` });
+  const parts = results.map((r) => {
+    const name = r.channel === "email" ? `بريد ${r.recipient}` : "تيليجرام";
+    if (r.result.ok) return `${name}: أُرسل`;
+    return `${name}: ${r.result.error === "not_configured" ? "غير مهيأ" : `فشل (${r.result.error})`}`;
+  });
+  const anyOk = results.some((r) => r.result.ok);
+  if (!results.some((r) => r.channel === "email")) parts.unshift("لا يوجد بريد فريق في الإعدادات");
+  return { ok: anyOk, message: parts.join(" — ") };
 }

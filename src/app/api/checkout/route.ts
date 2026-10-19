@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { placeOrder, CheckoutError } from "@/services/checkout";
 import { rateLimit } from "@/services/rate-limit";
 import { isSameOrigin, requestIp } from "@/lib/http/origin";
+import { reportError } from "@/services/monitoring";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ orderNumber: r.orderNumber, redirectUrl: r.redirectUrl }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof CheckoutError) return NextResponse.json({ error: e.code, details: e.details ?? null }, { status: STATUS[e.code] ?? 400 });
-    console.error("[checkout] unexpected:", e instanceof Error ? e.message : e);
+    await reportError("checkout", e, { path: "POST /api/checkout" });
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }

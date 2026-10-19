@@ -66,7 +66,7 @@ const Money = ({ label, value, onChange, nullable, hint }: { label: string; valu
   );
 };
 
-export function SettingsEditor({ s, webhookUrl }: { s: Settings; webhookUrl: string }) {
+export function SettingsEditor({ s, webhookUrl, notificationTest }: { s: Settings; webhookUrl: string; notificationTest?: React.ReactNode }) {
   return (
     <div className="space-y-6">
       <Group group="store" title="بيانات المتجر والتواصل" initial={s.store}>
@@ -211,6 +211,23 @@ export function SettingsEditor({ s, webhookUrl }: { s: Settings; webhookUrl: str
           </div>
         )}
       </Group>
+
+      <Group
+        group="notifications"
+        title="الإشعارات والتنبيهات"
+        description="البريد يُرسل عبر Resend (RESEND_API_KEY و EMAIL_FROM)، وتنبيهات تيليجرام عبر TELEGRAM_BOT_TOKEN و TELEGRAM_CHAT_ID في متغيرات البيئة."
+        initial={s.notifications}
+      >
+        {(v, set) => (
+          <div className="space-y-3">
+            <Check label="إرسال بريد للعميل عند تأكيد الطلب وشحنه وتسليمه وإلغائه (إن أدخل بريده)" checked={v.customerEmails} onChange={(x) => set({ customerEmails: x })} />
+            <Check label="تنبيهي بكل طلب جديد مؤكد (مدفوع أو دفع عند الاستلام)" checked={v.newOrderAlerts} onChange={(x) => set({ newOrderAlerts: x })} />
+            <Check label="تنبيهي عند حدوث أخطاء في الخادم (مرة واحدة لكل خطأ كل ساعة)" checked={v.errorAlerts} onChange={(x) => set({ errorAlerts: x })} />
+            <Text label="بريد الفريق للتنبيهات" dir="ltr" value={v.adminEmails} onChange={(x) => set({ adminEmails: x })} hint="عنوان أو أكثر مفصولة بفاصلة. يُستخدم مع تيليجرام إن كان مهيأ." />
+          </div>
+        )}
+      </Group>
+      {notificationTest}
 
       <Group group="launch" title="تأكيدات ما قبل الإطلاق" description="حدّدها فقط بعد مراجعتها فعلًا. تظهر في قائمة جاهزية الإطلاق." initial={s.launch}>
         {(v, set) => (

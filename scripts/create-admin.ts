@@ -6,6 +6,7 @@
  * If ADMIN_PASSWORD is not set, a strong random password is generated and
  * printed ONCE. Passwords are stored as scrypt hashes only.
  */
+import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { hashPassword, randomToken } from "@/lib/crypto";
 
@@ -23,10 +24,13 @@ async function main() {
 
   const db = await getDb();
   const passwordHash = await hashPassword(password);
-  await db
+  const [user] = await db
     .insert(schema.adminUsers)
     .values({ email: email.toLowerCase(), name, role: role as "owner", passwordHash })
-    .onConflictDoUpdate({ target: schema.adminUsers.email, set: { passwordHash, name, role: role as "owner", active: true, updatedAt: new Date() } });
+    .onConflictDoUpdate({ target: schema.adminUsers.email, set: { passwordHash, name, role: role as "owner", active: true, updatedAt: new Date() } })
+    .returning({ id: schema.adminUsers.id });
+  // A password reset signs out every existing session of that account.
+  if (user) await db.delete(schema.adminSessions).where(eq(schema.adminSessions.userId, user.id));
 
   console.log(`✓ admin ready: ${email.toLowerCase()} (${role})`);
   if (generated) console.log(`  generated password (shown once): ${password}`);

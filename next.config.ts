@@ -2,7 +2,47 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
 
+/*
+ * Content-Security-Policy. Only the store itself and the analytics tools the
+ * admin can enable are allowed to load scripts; plugins, <base> hijacking,
+ * framing by other sites and form posts to foreign hosts are blocked.
+ * 'unsafe-inline' stays for scripts because Next.js and the consent-gated
+ * analytics snippets use inline bootstraps (a nonce would force every page
+ * to render dynamically).
+ */
+const analyticsScripts = ["https://www.googletagmanager.com", "https://connect.facebook.net", "https://analytics.tiktok.com"];
+const analyticsBeacons = [
+  "https://www.google-analytics.com",
+  "https://*.google-analytics.com",
+  "https://*.analytics.google.com",
+  "https://www.googletagmanager.com",
+  "https://www.facebook.com",
+  "https://connect.facebook.net",
+  "https://analytics.tiktok.com",
+  "https://*.tiktok.com",
+];
+const storage = ["https://*.supabase.co"];
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} ${analyticsScripts.join(" ")}`,
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob: ${[...storage, ...analyticsBeacons].join(" ")}`,
+  "font-src 'self' data:",
+  `connect-src 'self'${isProd ? "" : " ws: wss:"} ${[...storage, ...analyticsBeacons].join(" ")}`,
+  `media-src 'self' blob: ${storage.join(" ")}`,
+  "worker-src 'self' blob:",
+  "frame-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  // Payment retry without JavaScript is a form post that redirects to the gateway.
+  "form-action 'self' https://*.moyasar.com https://moyasar.com",
+  "frame-ancestors 'none'",
+  "manifest-src 'self'",
+  ...(isProd && process.env.APP_URL?.startsWith("https://") ? ["upgrade-insecure-requests"] : []),
+].join("; ");
+
 const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

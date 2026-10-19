@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Package, Receipt, Users, TicketPercent, Settings, FileBadge, ScrollText, LogOut, Menu, X, Star, FileText, UserCog, ExternalLink } from "lucide-react";
+import { LayoutDashboard, Package, Receipt, Users, TicketPercent, Settings, FileBadge, ScrollText, LogOut, Menu, X, Star, FileText, UserCog, ExternalLink, FolderTree, TriangleAlert } from "lucide-react";
 import { LogoMark } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 import type { Permission } from "@/lib/auth/permissions";
@@ -11,6 +11,7 @@ const NAV: { href: string; label: string; icon: typeof Package; perm: Permission
   { href: "/admin", label: "نظرة عامة", icon: LayoutDashboard, perm: "dashboard.view" },
   { href: "/admin/orders", label: "الطلبات", icon: Receipt, perm: "orders.view" },
   { href: "/admin/products", label: "المنتجات", icon: Package, perm: "products.manage" },
+  { href: "/admin/categories", label: "التصنيفات", icon: FolderTree, perm: "products.manage" },
   { href: "/admin/customers", label: "العملاء", icon: Users, perm: "customers.view" },
   { href: "/admin/coupons", label: "العروض والكوبونات", icon: TicketPercent, perm: "coupons.manage" },
   { href: "/admin/reviews", label: "التقييمات", icon: Star, perm: "reviews.manage" },
@@ -19,6 +20,7 @@ const NAV: { href: string; label: string; icon: typeof Package; perm: Permission
   { href: "/admin/settings", label: "إعدادات المتجر", icon: Settings, perm: "settings.manage" },
   { href: "/admin/users", label: "المستخدمون", icon: UserCog, perm: "users.manage" },
   { href: "/admin/audit", label: "سجل العمليات", icon: ScrollText, perm: "audit.view" },
+  { href: "/admin/errors", label: "سجل الأخطاء", icon: TriangleAlert, perm: "audit.view" },
 ];
 
 export function AdminShell({ user, perms, logout, children, badges }: { user: { name: string; email: string; roleLabel: string }; perms: Permission[]; logout: () => Promise<void>; children: React.ReactNode; badges: Record<string, number> }) {

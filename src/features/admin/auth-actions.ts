@@ -7,6 +7,9 @@ import { verifyPassword } from "@/lib/crypto";
 import { clientIp, createAdminSession, destroyAdminSession, getAdminSession } from "@/lib/auth/session";
 import { rateLimit, clearRateLimit } from "@/services/rate-limit";
 import { audit } from "@/services/audit";
+import { requestPasswordReset, resetPassword, MIN_PASSWORD } from "@/services/password-reset";
+import { emailConfigured } from "@/services/notify";
+import { env } from "@/config/env";
 
 const loginSchema = z.object({ email: z.email().max(200), password: z.string().min(1).max(200) });
 // A real hash of a random string: keeps timing the same when the email doesn't exist.
@@ -39,4 +42,27 @@ export async function logout() {
   await destroyAdminSession();
   if (s) await audit({ actorId: s.userId, actorEmail: s.email, action: "auth.logout", entity: "admin_user", entityId: s.userId });
   redirect("/admin/login");
+}
+
+export type ResetState = { ok: boolean; message: string } | null;
+
+export async function forgotPassword(_: ResetState, formData: FormData): Promise<ResetState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!z.email().safeParse(email).success) return { ok: false, message: "أدخل بريدًا إلكترونيًا صحيحًا." };
+  const r = await requestPasswordReset(email, await clientIp());
+  if (r.limited) return { ok: false, message: "طلبات كثيرة. انتظر ساعة ثم حاول مجددًا." };
+  const devNote = !emailConfigured() && env.appEnv !== "production" ? " (بيئة تطوير: البريد غير مهيأ، لذلك يظهر الرابط في نافذة الخادم التي شغّلت منها npm run dev.)" : "";
+  return { ok: true, message: `إن كان البريد مسجلًا لدينا فستصلك رسالة برابط صالح لمدة 30 دقيقة.${devNote}` };
+}
+
+export async function completePasswordReset(_: ResetState, formData: FormData): Promise<ResetState> {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (password !== String(formData.get("confirm") ?? "")) return { ok: false, message: "كلمتا المرور غير متطابقتين." };
+  const ip = await clientIp();
+  const rl = await rateLimit(`pwreset:complete:${ip ?? "unknown"}`, 10, 900);
+  if (!rl.allowed) return { ok: false, message: "محاولات كثيرة. انتظر قليلًا." };
+  const r = await resetPassword(token, password, { ip });
+  if (!r.ok) return { ok: false, message: r.reason === "weak" ? `كلمة المرور ${MIN_PASSWORD} حرفًا على الأقل.` : "الرابط غير صالح أو انتهت صلاحيته أو استُخدم من قبل. اطلب رابطًا جديدًا." };
+  redirect("/admin/login?reset=1");
 }

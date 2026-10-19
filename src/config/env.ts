@@ -52,6 +52,18 @@ export const env = {
     publicBucket: str("SUPABASE_PUBLIC_BUCKET") ?? "public-media",
     privateBucket: str("SUPABASE_PRIVATE_BUCKET") ?? "private-docs",
   },
+  email: {
+    /** Resend (https://resend.com) API key. Empty = emails are not sent. */
+    resendKey: str("RESEND_API_KEY"),
+    /** Verified sender, e.g. "STORE 76 <orders@store76.sa>" */
+    from: str("EMAIL_FROM"),
+    replyTo: str("EMAIL_REPLY_TO"),
+  },
+  telegram: {
+    botToken: str("TELEGRAM_BOT_TOKEN"),
+    /** Your chat (or group) id; the bot must be allowed to message it. */
+    chatId: str("TELEGRAM_CHAT_ID"),
+  },
   assistant: {
     anthropicKey: str("ANTHROPIC_API_KEY"),
     model: str("ASSISTANT_MODEL") ?? "claude-haiku-5-5",

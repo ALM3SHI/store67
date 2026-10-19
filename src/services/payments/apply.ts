@@ -3,6 +3,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema, type DbOrTx, type Tx } from "@/lib/db";
 import { addOrderEvent, reReserveStock } from "@/services/orders";
 import type { ProviderPaymentState } from "./types";
+import { notifyOrder } from "@/services/notify";
+import { runAfterResponse } from "@/lib/after";
 
 export type ApplyResult = "applied" | "duplicate_event" | "no_change" | "amount_mismatch" | "not_found";
 
@@ -22,7 +24,8 @@ export async function applyPaymentState(args: {
   db?: DbOrTx;
 }): Promise<ApplyResult> {
   const conn = args.db ?? (await getDb());
-  return (conn as Tx).transaction(async (tx) => {
+  let confirmedOrderId: string | null = null;
+  const result = await (conn as Tx).transaction(async (tx): Promise<ApplyResult> => {
     const [payment] = await tx.select().from(schema.payments).where(eq(schema.payments.id, args.paymentId)).for("update");
     if (!payment) return "not_found";
 
@@ -84,6 +87,7 @@ export async function applyPaymentState(args: {
         })
         .where(eq(schema.orders.id, order.id));
       await addOrderEvent(tx, { orderId: order.id, type: "payment", message: "تم تأكيد الدفع", internal: false });
+      confirmedOrderId = order.id;
       if (wasCancelled || !stockOk) {
         await addOrderEvent(tx, {
           orderId: order.id,
@@ -145,6 +149,12 @@ export async function applyPaymentState(args: {
     }
     return "no_change";
   });
+  // Sent after the transaction commits; deduplicated per order, never throws.
+  if (result === "applied" && confirmedOrderId) {
+    const id: string = confirmedOrderId;
+    await runAfterResponse(() => notifyOrder(id, "order_confirmed", { db: args.db }));
+  }
+  return result;
 }
 
 export async function findPaymentByRef(provider: string, providerRef: string, db?: DbOrTx) {

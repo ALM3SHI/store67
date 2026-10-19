@@ -52,6 +52,12 @@ export async function destroyAdminSession() {
   jar.delete(ADMIN_COOKIE);
 }
 
+/** Hash of the current browser's session token (to keep it when signing out other devices). */
+export async function currentSessionHash(): Promise<string | null> {
+  const token = (await cookies()).get(ADMIN_COOKIE)?.value;
+  return token ? sha256(token) : null;
+}
+
 /** Validates the session cookie against the database (per request, memoised). */
 export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
   const jar = await cookies();

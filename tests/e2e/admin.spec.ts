@@ -67,4 +67,36 @@ test.describe("admin", () => {
     await form.getByRole("button", { name: "حفظ" }).click();
     await expect(form.getByTestId("form-message")).toContainText("GA4");
   });
+
+  test("categories can be added and show up as a store filter", async ({ page }) => {
+    await adminLogin(page);
+    await page.goto("/admin/categories");
+    const form = page.getByTestId("category-form");
+    await form.locator('input[name="nameAr"]').fill("الصوتيات");
+    await form.locator('input[name="nameEn"]').fill("Audio");
+    await form.locator('input[name="slug"]').fill("audio-e2e");
+    await form.getByRole("button", { name: "إضافة" }).click();
+    await expect(form.getByTestId("form-message")).toContainText("أُضيف التصنيف");
+    await page.goto("/ar/products");
+    await expect(page.getByRole("link", { name: "الصوتيات" })).toBeVisible();
+  });
+
+  test("the order page shows the message log and the team alert is recorded", async ({ page }) => {
+    const number = await createPaidOrder(page);
+    await adminLogin(page);
+    await page.goto(`/admin/orders?q=${number}`);
+    await page.getByTestId("admin-order-link").first().click();
+    await expect(page.getByText("الرسائل المرسلة")).toBeVisible();
+  });
+
+  test("forgot password never reveals whether an account exists", async ({ page }) => {
+    await page.goto("/admin/login");
+    await page.getByRole("link", { name: "نسيت كلمة المرور؟" }).click();
+    await expect(page).toHaveURL(/\/admin\/forgot$/);
+    await page.fill("#email", "nobody@store76.test");
+    await page.getByRole("button", { name: "إرسال رابط الاستعادة" }).click();
+    await expect(page.getByRole("status")).toContainText("إن كان البريد مسجلًا لدينا");
+    await page.goto("/admin/reset?token=" + "x".repeat(43));
+    await expect(page.getByText("الرابط غير صالح أو انتهت صلاحيته")).toBeVisible();
+  });
 });

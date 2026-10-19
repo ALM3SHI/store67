@@ -165,6 +165,7 @@ export function ProductEditor({ initial, categories }: { initial: ProductInput &
                   <option value="">بدون تصنيف</option>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
                 </select>
+                <a href="/admin/categories" target="_blank" className="mt-1 inline-block text-xs text-volt">إضافة أو تعديل التصنيفات</a>
               </div>
               {text("taglineAr", "العنوان التسويقي (عربي)", { max: 160 })}
               {text("taglineEn", "العنوان التسويقي (إنجليزي)", { dir: "ltr", max: 160 })}

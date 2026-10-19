@@ -12,13 +12,22 @@ import { PageHeader, Card, Badge, orderStatusTone, paymentStatusTone } from "@/c
 import { ActionForm } from "@/components/admin/action-form";
 import { SubmitButton } from "@/components/admin/ui";
 import { Money } from "@/components/ui/price";
-import { updateOrderStatus, addOrderNote, saveManualShipment, createAramexShipment, syncShipment, markCodCollected, refundOrder, refreshPaymentStatus } from "@/features/admin/order-actions";
+import { updateOrderStatus, addOrderNote, saveManualShipment, createAramexShipment, syncShipment, markCodCollected, refundOrder, refreshPaymentStatus, resendOrderEmail } from "@/features/admin/order-actions";
+import { listOrderNotifications } from "@/services/notify";
 import { audit } from "@/services/audit";
 import { formatSaudiMobile } from "@/lib/phone";
 import { halalasToInput } from "@/lib/money";
 import ar from "@/i18n/ar";
 
 export const metadata = { title: "تفاصيل الطلب" };
+
+const notificationKindLabel: Record<string, string> = {
+  order_confirmed: "تأكيد الطلب للعميل",
+  order_shipped: "إشعار الشحن للعميل",
+  order_delivered: "إشعار التسليم للعميل",
+  order_cancelled: "إشعار الإلغاء للعميل",
+  admin_new_order: "تنبيه طلب جديد للفريق",
+};
 
 export default async function OrderAdmin({ params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin("orders.view");
@@ -27,7 +36,7 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
   const db = await getDb();
   const [o] = await db.select().from(schema.orders).where(eq(schema.orders.id, id));
   if (!o) notFound();
-  const { items, events, payments, shipments } = await getOrderDetails(id, { includeInternal: true });
+  const [{ items, events, payments, shipments }, notes] = await Promise.all([getOrderDetails(id, { includeInternal: true }), listOrderNotifications(id)]);
   await audit({ actorId: admin.userId, actorEmail: admin.email, action: "order.view", entity: "order", entityId: id });
   const canUpdate = can(admin.role, "orders.update");
   const canRefund = can(admin.role, "orders.refund");
@@ -140,12 +149,45 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
             {o.customerId ? <Link href={`/admin/customers/${o.customerId}`} className="mt-3 inline-block text-sm text-volt">سجل العميل</Link> : null}
           </Card>
 
+          <Card title="الرسائل المرسلة">
+            {notes.length === 0 ? (
+              <p className="text-sm text-metal-500">{o.email ? "لم تُرسل رسائل لهذا الطلب بعد." : "العميل لم يُدخل بريدًا إلكترونيًا، لذلك يتابع الطلب من رابط صفحة الطلب فقط."}</p>
+            ) : (
+              <ul className="space-y-2 text-sm" data-testid="order-notifications">
+                {notes.map((n) => (
+                  <li key={n.id} className="rounded-lg bg-paper p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{notificationKindLabel[n.kind] ?? n.kind} — {n.channel === "email" ? "بريد" : "تيليجرام"}</span>
+                      <Badge tone={n.status === "sent" ? "green" : n.status === "failed" ? "red" : "gray"}>{n.status === "sent" ? "أُرسل" : n.status === "failed" ? "فشل" : n.status === "skipped" ? "لم يُرسل" : "جارٍ"}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-metal-500"><span dir="ltr">{n.channel === "email" ? n.recipient : ""}</span> {date.format(n.updatedAt)}</p>
+                    {n.error ? <p className="text-xs text-danger">{n.error === "not_configured" ? "القناة غير مهيأة في متغيرات البيئة" : n.error}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canUpdate && o.email ? (
+              <ActionForm action={resendOrderEmail} className="mt-3 flex flex-wrap items-center gap-2">
+                {hidden}
+                <select name="kind" className="field min-h-9 w-auto py-1 text-sm" aria-label="نوع الرسالة">
+                  <option value="order_confirmed">تأكيد الطلب</option>
+                  <option value="order_shipped">تم الشحن</option>
+                  <option value="order_delivered">تم التسليم</option>
+                  <option value="order_cancelled">إلغاء الطلب</option>
+                </select>
+                <SubmitButton variant="ghost">إعادة إرسال للعميل</SubmitButton>
+              </ActionForm>
+            ) : null}
+          </Card>
+
           {canUpdate && next.length ? (
             <Card title="تحديث الحالة">
               <ActionForm action={updateOrderStatus} testId="status-form">
                 {hidden}
                 <select name="status" className="field">{next.map((s) => <option key={s} value={s}>{ar.status[s]}</option>)}</select>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="public" defaultChecked /> إظهار التحديث للعميل في صفحة الطلب</label>
+                <input type="hidden" name="emailToggle" value="1" />
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="email" defaultChecked /> إرسال بريد للعميل عند الشحن أو التسليم أو الإلغاء{o.email ? "" : " (لا يوجد بريد لهذا العميل)"}</label>
                 <SubmitButton variant="ink">تحديث</SubmitButton>
               </ActionForm>
             </Card>

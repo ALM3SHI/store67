@@ -99,6 +99,22 @@ export const adminSessions = pgTable(
   (t) => [index("admin_sessions_user_idx").on(t.userId)],
 );
 
+/** One-time password reset links. Only the sha256 of the token is stored. */
+export const adminPasswordResets = pgTable(
+  "admin_password_resets",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    ip: text("ip"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("admin_password_resets_user_idx").on(t.userId)],
+);
+
 export const rateLimits = pgTable("rate_limits", {
   key: text("key").primaryKey(),
   count: integer("count").notNull().default(0),
@@ -505,4 +521,47 @@ export const couponRedemptions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("coupon_redemptions_order_uq").on(t.orderId), index("coupon_redemptions_coupon_phone_idx").on(t.couponId, t.phone)],
+);
+
+/* ───────────────────────── Notifications & monitoring */
+/**
+ * Every message the store sends (or decided not to send). The unique index makes
+ * "order confirmed" etc. go out once even when a webhook and a redirect race.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // order_confirmed | order_shipped | order_delivered | order_cancelled | admin_new_order | password_reset | test | error_alert
+    channel: text("channel").notNull(), // email | telegram
+    recipient: text("recipient").notNull(),
+    status: text("status").notNull(), // sending | sent | failed | skipped
+    error: text("error"),
+    providerId: text("provider_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("notifications_once_idx").on(t.orderId, t.kind, t.channel, t.recipient),
+    index("notifications_created_idx").on(t.createdAt),
+  ],
+);
+
+/** Server errors grouped by fingerprint so the admin sees "what broke and how often". */
+export const appErrors = pgTable(
+  "app_errors",
+  {
+    fingerprint: text("fingerprint").primaryKey(),
+    source: text("source").notNull(), // request | action | payment | shipping | cron | notify
+    message: text("message").notNull(),
+    detail: text("detail"),
+    path: text("path"),
+    count: integer("count").notNull().default(1),
+    resolved: boolean("resolved").notNull().default(false),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    alertedAt: timestamp("alerted_at", { withTimezone: true }),
+  },
+  (t) => [index("app_errors_last_seen_idx").on(t.lastSeenAt)],
 );

@@ -7,6 +7,10 @@ import { aiConfigured } from "@/services/assistant";
 import { env } from "@/config/env";
 import { PageHeader, Card } from "@/components/admin/static";
 import { SettingsEditor } from "@/components/admin/settings-editor";
+import { ActionForm } from "@/components/admin/action-form";
+import { SubmitButton } from "@/components/admin/ui";
+import { emailConfigured, telegramConfigured } from "@/services/notify";
+import { sendTestNotification } from "@/features/admin/misc-actions";
 
 export const metadata = { title: "إعدادات المتجر" };
 
@@ -22,6 +26,8 @@ export default async function SettingsPage() {
     { label: "أرامكس", ok: ship.aramex, on: `مربوط (${env.aramex.baseUrl})`, off: "غير مربوط — الشحن يدوي بسعر ثابت" },
     { label: "تخزين الملفات", ok: env.storage.driver === "supabase", on: "Supabase Storage", off: "قرص محلي (./storage) — غير مناسب للاستضافة السحابية بدون قرص دائم" },
     { label: "مساعد الشراء الذكي", ok: aiConfigured(), on: "مفعّل (ANTHROPIC_API_KEY)", off: "إجابات من الأسئلة المتكررة فقط" },
+    { label: "البريد الإلكتروني (Resend)", ok: emailConfigured(), on: `مفعّل — المرسل ${env.email.from}`, off: "غير مهيأ: RESEND_API_KEY + EMAIL_FROM — لن تصل رسائل للعملاء" },
+    { label: "تنبيهات تيليجرام", ok: telegramConfigured(), on: "مفعّلة", off: "غير مهيأة: TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID" },
     { label: "بيئة التشغيل", ok: env.appEnv === "production", on: "production", off: `${env.appEnv} — الفهرسة متوقفة` },
   ];
   return (
@@ -37,7 +43,16 @@ export default async function SettingsPage() {
           ))}
         </ul>
       </Card>
-      <SettingsEditor s={s} webhookUrl={`${env.appUrl}/api/payments/moyasar/webhook`} />
+      <SettingsEditor
+        s={s}
+        webhookUrl={`${env.appUrl}/api/payments/moyasar/webhook`}
+        notificationTest={
+          <ActionForm action={sendTestNotification} className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-paper-2 bg-white p-4 text-sm" testId="notification-test">
+            <span className="flex-1">احفظ الإعدادات أعلاه ثم أرسل رسالة تجريبية لبريد الفريق وتيليجرام للتأكد من وصولها.</span>
+            <SubmitButton variant="ghost">إرسال تنبيه تجريبي</SubmitButton>
+          </ActionForm>
+        }
+      />
     </>
   );
 }

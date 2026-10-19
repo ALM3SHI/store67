@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { quoteRequestSchema } from "@/schemas/checkout";
 import { buildQuote } from "@/services/quote";
+import { reportError } from "@/services/monitoring";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     // Internal ids are not needed by the browser
     return NextResponse.json({ ...q, coupon: q.coupon ? { ...q.coupon, couponId: null } : null }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
-    console.error("[quote]", e instanceof Error ? e.message : e);
+    await reportError("checkout", e, { path: "POST /api/cart/quote" });
     return NextResponse.json({ error: "quote_failed" }, { status: 500 });
   }
 }
