@@ -7,7 +7,7 @@ import type { Dictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import { RichText } from "@/components/ui/rich-text";
 import { formatSAR } from "@/lib/money";
-import { BuyBox, type BuyProduct } from "./buy-box";
+import type { BuyProduct } from "./buy-box";
 import { QuickBuy } from "./add-button";
 import { PriceTag } from "@/components/ui/price";
 import { Product3D } from "./product-3d";
@@ -20,55 +20,6 @@ function SectionHeading({ children, id, dark }: { children: React.ReactNode; id?
     <h2 id={id} className={`text-[1.65rem] font-semibold md:text-[2.1rem] ${dark ? "text-porcelain" : "text-ink"}`}>
       {children}
     </h2>
-  );
-}
-
-/* ─────────────────────────── Home hero: the product on its charging stage */
-export function HeroStage({ product, buy, locale, heroImage }: { product: ProductView; buy: BuyProduct; locale: Locale; heroImage: string }) {
-  const name = L(locale, product.nameAr, product.nameEn);
-  return (
-    <section className="relative isolate overflow-hidden bg-ink text-porcelain" aria-labelledby="hero-title">
-      <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(60%_70%_at_25%_55%,rgba(88,216,239,.10),transparent_70%),radial-gradient(50%_60%_at_85%_10%,rgba(45,99,245,.12),transparent_70%)] rtl:[transform:scaleX(-1)]" />
-      <div className="container-x grid items-center gap-8 pb-14 pt-8 md:min-h-[calc(100svh-6.5rem)] md:grid-cols-[1.05fr_1fr] md:gap-12 md:py-16">
-        <div className="order-2 space-y-6 md:order-1">
-          <p className="flex items-center gap-2 font-display text-[0.95rem] text-metal-300" style={{ fontFamily: "var(--font-display)" }} dir="auto">
-            <span className="h-2 w-2 rounded-full bg-field shadow-[0_0_12px_2px_rgba(88,216,239,.6)]" aria-hidden />
-            {name}
-          </p>
-          <h1 id="hero-title" className="max-w-[14ch] text-[clamp(2.35rem,6.4vw,4.75rem)] font-semibold leading-[1.08] tracking-[-0.02em]">
-            {L(locale, product.taglineAr, product.taglineEn)}
-          </h1>
-          <p className="max-w-[46ch] text-[1.08rem] leading-8 text-metal-300">{L(locale, product.shortAr, product.shortEn)}</p>
-          <BuyBox product={buy} tone="dark" />
-          {product.highlights.length ? (
-            <ul className="grid gap-x-6 gap-y-2.5 border-t border-white/10 pt-6 text-[0.95rem] text-metal-100 sm:grid-cols-2">
-              {product.highlights.map((h, i) => (
-                <li key={i} className="flex items-start gap-2.5">
-                  <Check size={17} className="mt-1 shrink-0 text-field" aria-hidden />
-                  {L(locale, h.ar, h.en)}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-
-        <div className="relative order-1 mx-auto aspect-square w-full max-w-[min(560px,88vw)] md:order-2">
-          <div className="field-rings" aria-hidden>
-            <span className="h-full w-full" />
-            <span className="h-full w-full" />
-            <span className="h-full w-full" />
-          </div>
-          <div aria-hidden className="absolute inset-[14%] rounded-full bg-[radial-gradient(circle,rgba(88,216,239,.22),transparent_65%)] blur-2xl" />
-          <div className="absolute inset-[2%] animate-snap-in">
-            {product.model3d ? (
-              <Product3D source={product.model3d} poster={posterFor(product)} alt={name} tone="dark" priority sizes="(min-width: 768px) 560px, 88vw" className="h-full w-full" />
-            ) : (
-              <Image src={heroImage} alt={L(locale, product.media[0]?.altAr ?? "", product.media[0]?.altEn ?? "") || name} fill priority fetchPriority="high" sizes="(min-width: 768px) 520px, 88vw" className="object-contain drop-shadow-[0_40px_60px_rgba(0,0,0,.55)]" />
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -181,20 +132,25 @@ export function SpecsSection({ product, t, locale, showDrafts }: { product: Prod
   );
 }
 
+/** "25 SAR, free from 300 SAR" — from settings only. */
+export function shippingSummary(settings: Settings, locale: Locale) {
+  const s = settings.shipping;
+  return s.rateSource === "flat"
+    ? s.freeOverHalalas !== null
+      ? locale === "ar"
+        ? `${formatSAR(s.flatRateHalalas, "ar")}، ومجاني من ${formatSAR(s.freeOverHalalas, "ar")}`
+        : `${formatSAR(s.flatRateHalalas, "en")}, free from ${formatSAR(s.freeOverHalalas, "en")}`
+      : formatSAR(s.flatRateHalalas, locale)
+    : locale === "ar"
+      ? "تُحسب حسب مدينتك في صفحة الدفع"
+      : "Calculated for your city at checkout";
+}
+
 /* ─────────────────────────── Shipping / returns / payment — only what is true */
 export function PromiseStrip({ settings, t, locale, onlinePaymentsLive, codEnabled }: { settings: Settings; t: Dictionary; locale: Locale; onlinePaymentsLive: boolean; codEnabled: boolean }) {
   const s = settings.shipping;
+  const shipLine = shippingSummary(settings, locale);
   const eta = L(locale, s.etaAr, s.etaEn);
-  const shipLine =
-    s.rateSource === "flat"
-      ? s.freeOverHalalas !== null
-        ? locale === "ar"
-          ? `${formatSAR(s.flatRateHalalas, "ar")}، ومجاني من ${formatSAR(s.freeOverHalalas, "ar")}`
-          : `${formatSAR(s.flatRateHalalas, "en")}, free from ${formatSAR(s.freeOverHalalas, "en")}`
-        : formatSAR(s.flatRateHalalas, locale)
-      : locale === "ar"
-        ? "تُحسب حسب مدينتك في صفحة الدفع"
-        : "Calculated for your city at checkout";
   const items = [
     {
       icon: Truck,
@@ -346,11 +302,11 @@ export function CollectionSection({ products, buys, t, locale }: { products: Pro
     <section className="container-x py-16 md:py-24" aria-labelledby="collection">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 id="collection" className="text-[1.65rem] font-semibold md:text-[2.1rem]">{locale === "ar" ? "المجموعة" : "The collection"}</h2>
-          <p className="mt-1 text-metal-700">{locale === "ar" ? "حرّك كل منتج بإصبعك وشاهده من كل زاوية." : "Turn each product with your finger and see it from every side."}</p>
+          <h2 id="collection" className="text-[1.65rem] font-semibold md:text-[2.1rem]">{t.home.collectionTitle}</h2>
+          <p className="mt-1 text-metal-700">{t.home.collectionBody}</p>
         </div>
         <Link href={`/${locale}/products`} className="text-[0.95rem] font-medium text-volt underline-offset-4 hover:underline">
-          {t.search.viewAll}
+          {t.home.viewAll}
         </Link>
       </div>
       <ul className="mt-10 grid gap-6 md:grid-cols-3">

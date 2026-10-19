@@ -75,6 +75,15 @@ export function organizationJsonLd(settings: Settings, storeName: string) {
   };
 }
 
+/** The home page lists several products: point search engines at each product page. */
+export function itemListJsonLd(items: { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.name, url: absUrl(it.path) })),
+  };
+}
+
 export function breadcrumbJsonLd(items: { name: string; path: string }[]) {
   return {
     "@context": "https://schema.org",

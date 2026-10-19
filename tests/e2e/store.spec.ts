@@ -2,18 +2,43 @@ import { test, expect } from "@playwright/test";
 import { addProductToCart, fillCheckout, noHorizontalScroll, signTestEvent } from "./helpers";
 
 test.describe("storefront", () => {
-  test("home page renders the product, price and structured data in Arabic RTL", async ({ page }) => {
+  test("home page presents the whole store in Arabic RTL with structured data", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/ar$/);
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("قرّبه من جوالك");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("أجهزة صغيرة");
+    // The hero names every product, not just one
+    for (const name of ["مدلّك الرأس 76", "المحفظة الذكية 76"]) await expect(page.getByRole("tab", { name })).toBeVisible();
     await expect(page.getByTestId("buy-box").first()).toContainText("149");
-    const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
-    const product = ld.map((x) => JSON.parse(x)).find((x) => x["@type"] === "Product");
+    const ld = (await page.locator('script[type="application/ld+json"]').allTextContents()).map((x) => JSON.parse(x));
+    const list = ld.find((x) => x["@type"] === "ItemList");
+    expect(list.itemListElement).toHaveLength(3);
+    expect(list.itemListElement[0].url).toContain("/ar/products/");
+    // Store-wide answers come from the settings
+    await expect(page.getByTestId("store-faq")).toContainText("25");
+    await noHorizontalScroll(page);
+  });
+
+  test("hero switches between products with tabs and keyboard", async ({ page }) => {
+    await page.goto("/ar");
+    const panel = page.getByTestId("showcase-panel");
+    await page.getByRole("tab", { name: "المحفظة الذكية 76" }).click();
+    await expect(page.getByRole("tab", { name: "المحفظة الذكية 76" })).toHaveAttribute("aria-selected", "true");
+    await expect(panel.getByTestId("buy-box")).toContainText("189");
+    await expect(panel.getByRole("link", { name: /كل التفاصيل/ })).toHaveAttribute("href", "/ar/products/smart-wallet-76");
+    // RTL: ArrowLeft moves to the next tab (wraps around)
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByRole("tab", { selected: true })).toBeFocused();
+    await expect(panel.getByTestId("buy-box")).not.toContainText("189");
+  });
+
+  test("product page carries its own Product structured data", async ({ page }) => {
+    await page.goto("/ar/products/magcharge-76");
+    const ld = (await page.locator('script[type="application/ld+json"]').allTextContents()).map((x) => JSON.parse(x));
+    const product = ld.find((x) => x["@type"] === "Product");
     expect(product.offers.price).toBe("149.00");
     expect(product.offers.availability).toContain("InStock");
     expect(product.aggregateRating).toBeUndefined(); // no fake ratings
-    await noHorizontalScroll(page);
   });
 
   test("English version switches direction and language", async ({ page }) => {
