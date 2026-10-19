@@ -184,6 +184,8 @@ const en: Dictionary = {
     unavailable: "This product isn't available right now.",
   },
   cart: {
+    restoring: "Putting your items back in the cart…",
+    restoreExpired: "This cart link has expired or its items are no longer available.",
     title: "Your cart",
     empty: "Your cart is empty.",
     emptyCta: "Browse products",
@@ -209,6 +211,7 @@ const en: Dictionary = {
     items: "{n} items",
   },
   checkout: {
+    remindMe: "Remind me about my cart at {email} if I don't finish (one email only).",
     title: "Checkout",
     steps: { details: "Details", delivery: "Delivery", payment: "Payment" },
     contact: "Contact details",

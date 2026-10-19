@@ -246,6 +246,8 @@ export async function placeOrder(raw: unknown, opts: { db?: DbOrTx; now?: Date; 
     return o!;
   });
 
+  // The shopper ordered, so an opt-in cart reminder is no longer wanted.
+  if (order.email) await runAfterResponse(async () => (await import("@/services/cart-reminders")).forgetCartReminderFor(order.email, opts.db));
   // Stock was reserved for this order; tell the team if anything reached its alert level.
   await runAfterResponse(async () => void (await (await import("@/services/low-stock")).sendLowStockAlerts(opts.db)));
   if (isCod) {

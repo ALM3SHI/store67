@@ -312,3 +312,22 @@ export function renderAdminReturn(d: { number: string; kind: string; orderNumber
     .join("\n");
   return { subject: `${d.kind === "exchange" ? "طلب استبدال" : "طلب استرجاع"} ${d.number} — ${d.storeName}`, text, html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8">${esc(text).replace(/\n/g, "<br>")}</div>` };
 }
+
+/** The one opt-in cart reminder. Plain and factual: current prices, no pressure tactics. */
+export function renderCartReminder(d: { locale: Lang; storeName: string; items: { name: string; quantity: number; lineTotalHalalas: number }[]; link: string }) {
+  const ar = d.locale === "ar";
+  const subject = ar ? `سلتك ما زالت محفوظة — ${d.storeName}` : `Your cart is saved — ${d.storeName}`;
+  const intro = ar ? "طلبت أن نذكّرك بسلتك. هذه المنتجات بأسعارها الحالية:" : "You asked us to remind you about your cart. Here's what's in it, at today's prices:";
+  const cta = ar ? "أكمل طلبك" : "Complete your order";
+  const foot = ar
+    ? "هذه رسالة واحدة فقط ولن نرسل غيرها. الأسعار والتوفر قد تتغير حتى إتمام الطلب."
+    : "This is the only reminder we'll send. Prices and availability may change until you order.";
+  const rows = d.items.map((i) => `${i.name} × ${i.quantity} — ${formatSAR(i.lineTotalHalalas, d.locale)}`);
+  const html = `<div dir="${ar ? "rtl" : "ltr"}" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8;max-width:520px;color:#0a0e14">
+<p style="font-weight:bold;font-size:18px;margin:0 0 8px">${esc(d.storeName)}</p>
+<p>${esc(intro)}</p>
+<ul>${rows.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+<p><a href="${esc(d.link)}" style="display:inline-block;background:#2d63f5;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px">${cta}</a></p>
+<p style="color:#7d8591;font-size:12px">${foot}</p></div>`;
+  return { subject, html, text: [intro, ...rows, `${cta}: ${d.link}`, foot].join("\n") };
+}

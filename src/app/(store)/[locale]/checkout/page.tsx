@@ -5,6 +5,7 @@ import { getShell } from "@/services/storefront";
 import { SAUDI_CITIES } from "@/lib/saudi-cities";
 import { CheckoutForm, type CheckoutAccount } from "@/components/checkout/checkout-form";
 import { getCustomer } from "@/services/customer-auth";
+import { cartRemindersAvailable } from "@/services/cart-reminders";
 import { getDb, schema } from "@/lib/db";
 import { asc, desc, eq } from "drizzle-orm";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function CheckoutPage({ params }: { params: Promise<{ locale: string }> }) {
   const locale = asLocale((await params).locale);
   const t = getDictionary(locale);
-  const [shell, customer] = await Promise.all([getShell(locale), getCustomer()]);
+  const [shell, customer, reminders] = await Promise.all([getShell(locale), getCustomer(), cartRemindersAvailable()]);
   const addresses = customer
     ? await (await getDb())
         .select()
@@ -37,7 +38,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
   return (
     <div className="container-x py-8 md:py-12">
       <h1 className="mb-6 text-[1.9rem] font-semibold md:mb-8 md:text-[2.4rem]">{t.checkout.title}</h1>
-      <CheckoutForm cities={sorted} paymentBadges={shell.paymentBadges} account={account} />
+      <CheckoutForm cities={sorted} paymentBadges={shell.paymentBadges} account={account} cartReminders={reminders} />
     </div>
   );
 }

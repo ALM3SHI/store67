@@ -182,6 +182,8 @@ const ar = {
     unavailable: "هذا المنتج غير متاح حاليًا.",
   },
   cart: {
+    restoring: "نعيد منتجاتك إلى السلة…",
+    restoreExpired: "انتهت صلاحية رابط السلة أو لم تعد منتجاته متوفرة.",
     title: "سلة المشتريات",
     empty: "سلتك فارغة.",
     emptyCta: "تصفّح المنتجات",
@@ -207,6 +209,7 @@ const ar = {
     items: "{n} منتج",
   },
   checkout: {
+    remindMe: "ذكّرني بسلتي على {email} إن لم أكمل الطلب (رسالة واحدة فقط).",
     title: "إتمام الطلب",
     steps: { details: "البيانات", delivery: "التوصيل", payment: "الدفع" },
     contact: "بيانات التواصل",

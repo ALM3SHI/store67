@@ -229,4 +229,9 @@ test.describe("store features", () => {
     await expect(page).toHaveURL(/preset=last_month/);
     await expect(page.getByTestId("report-kpis")).toBeVisible();
   });
+
+  test("cart restore link: an unknown token explains itself instead of failing", async ({ page }) => {
+    await page.goto("/ar/cart/restore?token=" + "x".repeat(32));
+    await expect(page.getByTestId("cart-restore")).toContainText("انتهت صلاحية رابط السلة");
+  });
 });

@@ -41,7 +41,7 @@ export type CheckoutAccount = {
   addresses: { id: string; label: string; recipientName: string; phone: string; city: string; district: string; street: string; nationalAddress: string; postalCode: string; isDefault: boolean }[];
 };
 
-export function CheckoutForm({ cities, paymentBadges, account = null }: { cities: City[]; paymentBadges: string[]; account?: CheckoutAccount | null }) {
+export function CheckoutForm({ cities, paymentBadges, account = null, cartReminders = false }: { cities: City[]; paymentBadges: string[]; account?: CheckoutAccount | null; cartReminders?: boolean }) {
   const { t, locale } = useI18n();
   const cart = useCart();
   const [form, setForm] = useState<Form>(EMPTY);
@@ -54,6 +54,39 @@ export function CheckoutForm({ cities, paymentBadges, account = null }: { cities
   const [draftLoaded, setDraftLoaded] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
   const q = cart.quote;
+  const [remind, setRemind] = useState(false);
+  const savedReminder = useRef<string | null>(null);
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim());
+  const reminderKey = JSON.stringify(cart.items.map((i) => [i.variantId, i.quantity]));
+
+  // Opt-in cart reminder: saved only while the box is ticked; unticking forgets the email.
+  useEffect(() => {
+    if (!cartReminders) return;
+    const email = form.email.trim().toLowerCase();
+    const forget = (e: string) =>
+      void fetch("/api/cart/reminder", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: e }) }).catch(() => {});
+    if (!remind || !emailOk || !cart.items.length) {
+      if (savedReminder.current) {
+        forget(savedReminder.current);
+        savedReminder.current = null;
+      }
+      return;
+    }
+    const h = setTimeout(() => {
+      if (savedReminder.current && savedReminder.current !== email) forget(savedReminder.current);
+      fetch("/api/cart/reminder", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, locale, items: cart.items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })) }),
+      })
+        .then((r) => {
+          if (r.ok) savedReminder.current = email;
+        })
+        .catch(() => {});
+    }, 700);
+    return () => clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartReminders, remind, emailOk, form.email, reminderKey, locale]);
 
   // Restore a saved draft (kept on this device only)
   useEffect(() => {
@@ -457,6 +490,12 @@ export function CheckoutForm({ cities, paymentBadges, account = null }: { cities
           {input("name", t.checkout.name, { autoComplete: "name", required: true, maxLength: 80 })}
           {input("phone", t.checkout.phone, { autoComplete: "tel", inputMode: "tel", dir: "ltr", required: true, placeholder: "05XXXXXXXX", className: "field text-start" }, t.checkout.phoneHint)}
           {input("email", t.checkout.email, { type: "email", autoComplete: "email", dir: "ltr", inputMode: "email", className: "field text-start" }, t.checkout.emailHint)}
+          {cartReminders && emailOk ? (
+            <label className="flex items-start gap-2.5 text-sm text-metal-700">
+              <input type="checkbox" className="mt-1" checked={remind} onChange={(e) => setRemind(e.target.checked)} data-testid="cart-reminder" />
+              <span>{format(t.checkout.remindMe, { email: form.email.trim() })}</span>
+            </label>
+          ) : null}
         </fieldset>
 
         <fieldset className="space-y-4">

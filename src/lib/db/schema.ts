@@ -720,3 +720,18 @@ export const promotions = pgTable("promotions", {
   endsAt: timestamp("ends_at", { withTimezone: true }),
   ...timestamps,
 });
+
+/**
+ * "Remind me about my cart" — only stored when the shopper ticks the box at
+ * checkout. One email at most; the row is deleted when they order or after a week.
+ */
+export const cartReminders = pgTable("cart_reminders", {
+  email: text("email").primaryKey(),
+  locale: text("locale").notNull().default("ar"),
+  items: jsonb("items").$type<{ variantId: string; quantity: number }[]>().notNull(),
+  /** sha256 of the restore-link secret */
+  tokenHash: text("token_hash").notNull(),
+  remindAt: timestamp("remind_at", { withTimezone: true }).notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

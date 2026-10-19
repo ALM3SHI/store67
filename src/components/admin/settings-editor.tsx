@@ -263,6 +263,8 @@ export function SettingsEditor({ s, webhookUrl, notificationTest }: { s: Setting
             <Check label="تنبيهي بكل طلب جديد مؤكد (مدفوع أو دفع عند الاستلام)" checked={v.newOrderAlerts} onChange={(x) => set({ newOrderAlerts: x })} />
             <Check label="تنبيهي عند حدوث أخطاء في الخادم (مرة واحدة لكل خطأ كل ساعة)" checked={v.errorAlerts} onChange={(x) => set({ errorAlerts: x })} />
             <Check label="تنبيهي عند انخفاض المخزون إلى حد التنبيه (مرة واحدة حتى تعيد التعبئة)" checked={v.lowStockAlerts} onChange={(x) => set({ lowStockAlerts: x })} />
+            <Check label="عرض خيار «ذكّرني بسلتي» في صفحة الدفع — بريد واحد فقط لمن يختاره ولم يكمل طلبه (يتطلب البريد)" checked={v.cartReminders} onChange={(x) => set({ cartReminders: x })} />
+            {v.cartReminders ? <Text label="إرسال التذكير بعد (ساعات)" dir="ltr" value={String(v.cartReminderHours)} onChange={(x) => set({ cartReminderHours: Number(x || 0) })} /> : null}
             <Text label="بريد الفريق للتنبيهات" dir="ltr" value={v.adminEmails} onChange={(x) => set({ adminEmails: x })} hint="عنوان أو أكثر مفصولة بفاصلة. يُستخدم مع تيليجرام إن كان مهيأ." />
           </div>
         )}

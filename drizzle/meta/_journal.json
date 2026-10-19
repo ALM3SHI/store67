@@ -64,6 +64,13 @@
       "when": 1792442019488,
       "tag": "0008_low_stock_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792442409532,
+      "tag": "0009_cart_reminders",
+      "breakpoints": true
     }
   ]
 }

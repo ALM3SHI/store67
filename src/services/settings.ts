@@ -142,6 +142,9 @@ export const notificationSettingsSchema = z.object({
   errorAlerts: z.boolean().default(true),
   /** Stock at or below a variant's alert level → one admin email + Telegram until restocked */
   lowStockAlerts: z.boolean().default(true),
+  /** Offer shoppers an opt-in "remind me about my cart" email at checkout */
+  cartReminders: z.boolean().default(false),
+  cartReminderHours: z.number().int().min(1).max(72).default(3),
 });
 
 export const settingSchemas = {
