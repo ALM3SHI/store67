@@ -9,6 +9,7 @@ import { PriceTag } from "@/components/ui/price";
 import { useToast } from "@/components/ui/toast";
 import { discountPercent } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { WishlistButton } from "@/components/wishlist/wishlist";
 import type { VariantView } from "@/services/catalog";
 
 export type BuyProduct = {
@@ -161,8 +162,9 @@ export function BuyBox({ product, tone = "light", showShare = false }: { product
             </button>
           </>
         ) : (
-          <p className={cn("rounded-full border px-4 py-3 text-sm", dark ? "border-white/15 text-metal-300" : "border-metal-300 text-metal-700")}>{t.product.unavailable}</p>
+          <BackInStockForm key={v.id} variantId={v.id} dark={dark} />
         )}
+        {showShare ? <WishlistButton slug={product.slug} tone={dark ? "dark" : "light"} className="h-12 w-12" /> : null}
         {showShare ? (
           <button type="button" onClick={share} className={cn("grid h-12 w-12 place-items-center rounded-full", dark ? "text-metal-300 hover:bg-white/10" : "text-metal-700 hover:bg-paper-2")} aria-label={t.product.share}>
             <Share2 size={18} />
@@ -192,5 +194,52 @@ export function BuyBox({ product, tone = "light", showShare = false }: { product
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Shown instead of the purchase buttons when the chosen version is sold out. */
+function BackInStockForm({ variantId, dark }: { variantId: string; dark: boolean }) {
+  const { t, locale } = useI18n();
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "done" | "in_stock" | "error">("idle");
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setState("sending");
+    try {
+      const res = await fetch("/api/stock-alerts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variantId, email, locale }) });
+      const data = (await res.json().catch(() => ({}))) as { result?: string };
+      setState(!res.ok ? "error" : data.result === "in_stock" ? "in_stock" : "done");
+    } catch {
+      setState("error");
+    }
+  };
+  if (state === "done" || state === "in_stock") {
+    return (
+      <p role="status" className={cn("w-full rounded-2xl px-4 py-3 text-sm", dark ? "bg-white/5 text-field" : "bg-ok/10 text-ok")} data-testid="stock-alert-done">
+        {state === "done" ? t.product.notifyDone : t.product.notifyInStock}
+      </p>
+    );
+  }
+  return (
+    <form onSubmit={submit} className={cn("w-full space-y-2 rounded-2xl border p-4", dark ? "border-white/15" : "border-paper-2 bg-porcelain")} data-testid="stock-alert-form">
+      <p className={cn("font-medium", dark ? "text-white" : "text-ink")}>{t.product.notifyTitle}</p>
+      <p className={cn("text-sm", dark ? "text-metal-300" : "text-metal-700")}>{t.product.notifyBody}</p>
+      <div className="flex flex-wrap gap-2">
+        <label className="sr-only" htmlFor={`sa-${variantId}`}>{t.product.notifyEmail}</label>
+        <input
+          id={`sa-${variantId}`}
+          type="email"
+          required
+          dir="ltr"
+          autoComplete="email"
+          placeholder={t.product.notifyEmail}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="field min-w-0 flex-1 text-start"
+        />
+        <button className="btn btn-primary" disabled={state === "sending"}>{t.product.notifySubmit}</button>
+      </div>
+      {state === "error" ? <p role="alert" className="text-sm text-danger">{t.product.notifyError}</p> : null}
+    </form>
   );
 }

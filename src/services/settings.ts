@@ -67,6 +67,19 @@ export const shippingSettingsSchema = z.object({
   originPhone: optionalText,
   /** Cities the store delivers to; empty = all listed Saudi cities */
   cities: z.array(z.string()).default([]),
+  /** Optional per-city price / delivery time; cities not listed use the flat rate */
+  cityRates: z
+    .array(
+      z.object({
+        city: z.string().min(1),
+        rateHalalas: z.number().int().min(0),
+        etaAr: z.string().trim().max(60).default(""),
+        etaEn: z.string().trim().max(60).default(""),
+      }),
+    )
+    .max(200)
+    .default([])
+    .refine((rows) => new Set(rows.map((r) => r.city)).size === rows.length, "كل مدينة تُضاف مرة واحدة فقط"),
 });
 
 export const paymentSettingsSchema = z.object({
@@ -111,6 +124,8 @@ export const launchSettingsSchema = z.object({
 export const notificationSettingsSchema = z.object({
   /** Email the customer (when they gave an email) on confirm / ship / deliver / cancel */
   customerEmails: z.boolean().default(true),
+  /** SMS to the customer's mobile (costs per message — off until you turn it on) */
+  customerSms: z.boolean().default(false),
   /** Comma-separated addresses that receive new-order and error alerts */
   adminEmails: z
     .string()

@@ -16,6 +16,7 @@ import type { ActionState } from "@/components/admin/ui";
 import ar from "@/i18n/ar";
 import { notifyOrder } from "@/services/notify";
 import { runAfterResponse } from "@/lib/after";
+import { sendBackInStockAlerts } from "@/services/stock-alerts";
 import type { OrderEmailKind } from "@/services/notify/templates";
 
 const idSchema = z.uuid();
@@ -49,6 +50,7 @@ export async function updateOrderStatus(_: ActionState, fd: FormData): Promise<A
     to === "shipped" ? "order_shipped" : to === "delivered" ? "order_delivered" : to === "cancelled" && !["pending_payment", "payment_failed"].includes(o.status) ? "order_cancelled" : null;
   const sendEmail = fd.has("emailToggle") ? fd.get("email") === "on" : true;
   if (mailKind && sendEmail) await runAfterResponse(() => notifyOrder(id, mailKind));
+  if (to === "cancelled") await runAfterResponse(() => sendBackInStockAlerts());
   const warn = to === "cancelled" && o.paymentStatus === "paid" ? " الطلب مدفوع: نفّذ الاسترجاع من قسم الدفع." : "";
   return done(id, "حُدّثت حالة الطلب." + warn);
 }

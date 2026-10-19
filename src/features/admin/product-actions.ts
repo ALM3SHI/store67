@@ -1,5 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { runAfterResponse } from "@/lib/after";
+import { sendBackInStockAlerts } from "@/services/stock-alerts";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { getDb, schema, type Tx } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/session";
@@ -148,6 +150,8 @@ export async function saveProduct(_: ActionState, formData: FormData): Promise<A
   await audit({ actorId: admin.userId, actorEmail: admin.email, action: productId ? "product.update" : "product.create", entity: "product", entityId: id, meta: { slug: p.slug, status: p.status, prices: variants.map((v) => [v.sku, v.priceHalalas]) } });
   invalidateSearchIndex();
   revalidatePath("/", "layout");
+  // Stock may have come back: email anyone waiting for it.
+  await runAfterResponse(() => sendBackInStockAlerts());
   return { ok: true, message: "حُفظ المنتج.", id };
 }
 

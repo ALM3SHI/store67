@@ -1,5 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { PENDING_COOKIE, PENDING_MINUTES, readPendingLogin, signPendingLogin, verifySecondFactor } from "@/services/two-factor";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
@@ -31,6 +33,13 @@ export async function login(_: unknown, formData: FormData): Promise<{ error: st
     return { error: "البريد الإلكتروني أو كلمة المرور غير صحيحة." };
   }
   await clearRateLimit(key);
+  if (user.totpEnabledAt) {
+    // Password is right; the session is created only after the second factor.
+    const jar = await cookies();
+    jar.set(PENDING_COOKIE, signPendingLogin(user.id), { httpOnly: true, sameSite: "lax", secure: env.appUrl.startsWith("https://"), path: "/admin", maxAge: PENDING_MINUTES * 60 });
+    await audit({ actorId: user.id, actorEmail: user.email, action: "auth.password_ok_2fa_pending", entity: "admin_user", entityId: user.id, ip });
+    redirect("/admin/login/verify");
+  }
   await createAdminSession(user.id);
   await db.update(schema.adminUsers).set({ lastLoginAt: new Date() }).where(eq(schema.adminUsers.id, user.id));
   await audit({ actorId: user.id, actorEmail: user.email, action: "auth.login", entity: "admin_user", entityId: user.id, ip });
@@ -65,4 +74,27 @@ export async function completePasswordReset(_: ResetState, formData: FormData): 
   const r = await resetPassword(token, password, { ip });
   if (!r.ok) return { ok: false, message: r.reason === "weak" ? `كلمة المرور ${MIN_PASSWORD} حرفًا على الأقل.` : "الرابط غير صالح أو انتهت صلاحيته أو استُخدم من قبل. اطلب رابطًا جديدًا." };
   redirect("/admin/login?reset=1");
+}
+
+export async function verifyLoginCode(_: ResetState, formData: FormData): Promise<ResetState> {
+  const jar = await cookies();
+  const userId = readPendingLogin(jar.get(PENDING_COOKIE)?.value);
+  if (!userId) redirect("/admin/login?expired=1");
+  const ip = await clientIp();
+  const rl = await rateLimit(`2fa:${userId}`, 6, 900);
+  if (!rl.allowed) return { ok: false, message: "محاولات كثيرة. انتظر ١٥ دقيقة ثم سجّل الدخول من جديد." };
+  const code = String(formData.get("code") ?? "").slice(0, 40);
+  const via = await verifySecondFactor(userId, code);
+  const db = await getDb();
+  const [user] = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.id, userId));
+  if (!via || !user || !user.active) {
+    await audit({ actorId: userId, actorEmail: user?.email ?? null, action: "auth.2fa_failed", entity: "admin_user", entityId: userId, ip });
+    return { ok: false, message: "الرمز غير صحيح أو مستخدم من قبل. أدخل الرمز الحالي من تطبيق المصادقة." };
+  }
+  await clearRateLimit(`2fa:${userId}`);
+  jar.delete({ name: PENDING_COOKIE, path: "/admin" });
+  await createAdminSession(user.id);
+  await db.update(schema.adminUsers).set({ lastLoginAt: new Date() }).where(eq(schema.adminUsers.id, user.id));
+  await audit({ actorId: user.id, actorEmail: user.email, action: via === "recovery" ? "auth.login_recovery_code" : "auth.login", entity: "admin_user", entityId: user.id, ip });
+  redirect(via === "recovery" ? "/admin/account?recovery=1" : "/admin");
 }

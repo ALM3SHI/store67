@@ -134,6 +134,42 @@ export function SettingsEditor({ s, webhookUrl, notificationTest }: { s: Setting
             <Text label="عنوان المستودع (لأرامكس)" value={v.originLine1} onChange={(x) => set({ originLine1: x })} />
             <Text label="اسم المسؤول" value={v.originContactName} onChange={(x) => set({ originContactName: x })} />
             <Text label="هاتف المستودع" dir="ltr" value={v.originPhone} onChange={(x) => set({ originPhone: x })} />
+            <div className="md:col-span-2" data-testid="city-rates">
+              <label className="label">أسعار خاصة لبعض المدن (اختياري)</label>
+              <p className="mb-2 text-xs text-metal-500">المدن غير المضافة هنا تستخدم السعر الثابت. يُطبّق حد الشحن المجاني على الجميع.</p>
+              <div className="space-y-2">
+                {v.cityRates.map((r, i) => (
+                  <div key={r.city} className="grid items-end gap-2 rounded-xl border border-paper-2 p-2 sm:grid-cols-[1.2fr_0.8fr_1fr_1fr_auto]">
+                    <select
+                      aria-label="المدينة"
+                      value={r.city}
+                      onChange={(e) => set({ cityRates: v.cityRates.map((x, j) => (j === i ? { ...x, city: e.target.value } : x)) })}
+                      className="field"
+                    >
+                      {SAUDI_CITIES.filter((c) => c.en === r.city || !v.cityRates.some((x) => x.city === c.en)).map((c) => <option key={c.en} value={c.en}>{c.ar}</option>)}
+                    </select>
+                    <Money label="السعر (ر.س)" value={r.rateHalalas} onChange={(x) => set({ cityRates: v.cityRates.map((y, j) => (j === i ? { ...y, rateHalalas: x ?? 0 } : y)) })} />
+                    <Text label="المدة (عربي)" value={r.etaAr} onChange={(x) => set({ cityRates: v.cityRates.map((y, j) => (j === i ? { ...y, etaAr: x } : y)) })} />
+                    <Text label="ETA (English)" dir="ltr" value={r.etaEn} onChange={(x) => set({ cityRates: v.cityRates.map((y, j) => (j === i ? { ...y, etaEn: x } : y)) })} />
+                    <button type="button" className="btn btn-ghost btn-sm text-danger" aria-label="حذف المدينة" onClick={() => set({ cityRates: v.cityRates.filter((_, j) => j !== i) })}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {v.cityRates.length < SAUDI_CITIES.length ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm mt-2"
+                  onClick={() => {
+                    const free = SAUDI_CITIES.find((c) => !v.cityRates.some((x) => x.city === c.en));
+                    if (free) set({ cityRates: [...v.cityRates, { city: free.en, rateHalalas: v.flatRateHalalas, etaAr: "", etaEn: "" }] });
+                  }}
+                >
+                  <Plus size={15} /> إضافة سعر لمدينة
+                </button>
+              ) : null}
+            </div>
             <div className="md:col-span-2">
               <label className="label">مدن التوصيل (بدون تحديد = كل المدن)</label>
               <div className="flex flex-wrap gap-2">
@@ -215,12 +251,13 @@ export function SettingsEditor({ s, webhookUrl, notificationTest }: { s: Setting
       <Group
         group="notifications"
         title="الإشعارات والتنبيهات"
-        description="البريد يُرسل عبر Resend (RESEND_API_KEY و EMAIL_FROM)، وتنبيهات تيليجرام عبر TELEGRAM_BOT_TOKEN و TELEGRAM_CHAT_ID في متغيرات البيئة."
+        description="البريد عبر Resend (RESEND_API_KEY و EMAIL_FROM)، والرسائل النصية عبر تقنيات (TAQNYAT_API_KEY و SMS_SENDER)، وتنبيهات تيليجرام عبر TELEGRAM_BOT_TOKEN و TELEGRAM_CHAT_ID."
         initial={s.notifications}
       >
         {(v, set) => (
           <div className="space-y-3">
             <Check label="إرسال بريد للعميل عند تأكيد الطلب وشحنه وتسليمه وإلغائه (إن أدخل بريده)" checked={v.customerEmails} onChange={(x) => set({ customerEmails: x })} />
+            <Check label="رسالة SMS للعميل عند تأكيد الطلب وشحنه (تقنيات — كل رسالة بتكلفة)" checked={v.customerSms} onChange={(x) => set({ customerSms: x })} />
             <Check label="تنبيهي بكل طلب جديد مؤكد (مدفوع أو دفع عند الاستلام)" checked={v.newOrderAlerts} onChange={(x) => set({ newOrderAlerts: x })} />
             <Check label="تنبيهي عند حدوث أخطاء في الخادم (مرة واحدة لكل خطأ كل ساعة)" checked={v.errorAlerts} onChange={(x) => set({ errorAlerts: x })} />
             <Text label="بريد الفريق للتنبيهات" dir="ltr" value={v.adminEmails} onChange={(x) => set({ adminEmails: x })} hint="عنوان أو أكثر مفصولة بفاصلة. يُستخدم مع تيليجرام إن كان مهيأ." />

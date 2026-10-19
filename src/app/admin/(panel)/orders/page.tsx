@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { and, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
+import { orderWhere } from "@/services/order-export";
 import { requireAdmin } from "@/lib/auth/session";
 import { getDb, schema } from "@/lib/db";
 import { PageHeader, Badge, Empty, orderStatusTone, paymentStatusTone, thClass, tdClass } from "@/components/admin/static";
 import { Money } from "@/components/ui/price";
-import { normalizeSaudiMobile } from "@/lib/phone";
 import ar from "@/i18n/ar";
 
 export const metadata = { title: "الطلبات" };
@@ -14,16 +14,8 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
   await requireAdmin("orders.view");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
-  const conds: SQL[] = [];
   const q = (sp.q ?? "").trim().slice(0, 80);
-  if (q) {
-    const phone = normalizeSaudiMobile(q);
-    conds.push(or(ilike(schema.orders.number, `%${q}%`), ilike(schema.orders.customerName, `%${q}%`), phone ? eq(schema.orders.phone, phone) : sql`false`)!);
-  }
-  if (sp.status && sp.status in ar.status) conds.push(eq(schema.orders.status, sp.status as never));
-  if (sp.from && /^\d{4}-\d{2}-\d{2}$/.test(sp.from)) conds.push(gte(schema.orders.createdAt, new Date(`${sp.from}T00:00:00+03:00`)));
-  if (sp.to && /^\d{4}-\d{2}-\d{2}$/.test(sp.to)) conds.push(lte(schema.orders.createdAt, new Date(`${sp.to}T23:59:59+03:00`)));
-  const where = conds.length ? and(...conds) : undefined;
+  const where = orderWhere({ q, status: sp.status, from: sp.from, to: sp.to });
   const db = await getDb();
   const [rows, [count]] = await Promise.all([
     db.select().from(schema.orders).where(where).orderBy(desc(schema.orders.createdAt)).limit(PAGE).offset((page - 1) * PAGE),
@@ -37,7 +29,18 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
   };
   return (
     <>
-      <PageHeader title="الطلبات" description={`${count?.n ?? 0} طلب`} />
+      <PageHeader
+        title="الطلبات"
+        description={`${count?.n ?? 0} طلب`}
+        actions={
+          <>
+          <Link href="/admin/print/packing?status=ready" className="btn btn-ghost btn-sm" data-testid="print-ready">طباعة أوراق تجهيز الطلبات المؤكدة</Link>
+          <a href={`/api/admin/orders/export?${new URLSearchParams(Object.entries({ q, status: sp.status, from: sp.from, to: sp.to }).filter(([, v]) => v) as [string, string][])}`} className="btn btn-ghost btn-sm" data-testid="export-orders">
+            تصدير إلى Excel
+          </a>
+          </>
+        }
+      />
       <form className="mb-5 grid gap-3 rounded-2xl border border-paper-2 bg-white p-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto] md:items-end">
         <div><label className="label" htmlFor="q">بحث</label><input id="q" name="q" defaultValue={q} placeholder="رقم الطلب، اسم العميل أو الجوال" className="field" /></div>
         <div><label className="label" htmlFor="status">الحالة</label><select id="status" name="status" defaultValue={sp.status ?? ""} className="field"><option value="">الكل</option>{Object.entries(ar.status).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>

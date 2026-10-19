@@ -55,6 +55,7 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
           <>
             <Badge tone={orderStatusTone[o.status]}>{ar.status[o.status]}</Badge>
             <Badge tone={paymentStatusTone[o.paymentStatus]}>{ar.paymentStatus[o.paymentStatus]}</Badge>
+            <Link href={`/admin/print/packing?ids=${o.id}`} className="btn btn-ghost btn-sm" data-testid="print-slip">ورقة التجهيز</Link>
             <Link href="/admin/orders" className="btn btn-ghost btn-sm">كل الطلبات</Link>
           </>
         }
@@ -157,10 +158,10 @@ export default async function OrderAdmin({ params }: { params: Promise<{ id: str
                 {notes.map((n) => (
                   <li key={n.id} className="rounded-lg bg-paper p-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span>{notificationKindLabel[n.kind] ?? n.kind} — {n.channel === "email" ? "بريد" : "تيليجرام"}</span>
+                      <span>{notificationKindLabel[n.kind] ?? n.kind} — {n.channel === "email" ? "بريد" : n.channel === "sms" ? "رسالة نصية" : "تيليجرام"}</span>
                       <Badge tone={n.status === "sent" ? "green" : n.status === "failed" ? "red" : "gray"}>{n.status === "sent" ? "أُرسل" : n.status === "failed" ? "فشل" : n.status === "skipped" ? "لم يُرسل" : "جارٍ"}</Badge>
                     </div>
-                    <p className="mt-1 text-xs text-metal-500"><span dir="ltr">{n.channel === "email" ? n.recipient : ""}</span> {date.format(n.updatedAt)}</p>
+                    <p className="mt-1 text-xs text-metal-500"><span dir="ltr">{n.channel === "telegram" ? "" : n.channel === "sms" ? formatSaudiMobile(n.recipient) : n.recipient}</span> {date.format(n.updatedAt)}</p>
                     {n.error ? <p className="text-xs text-danger">{n.error === "not_configured" ? "القناة غير مهيأة في متغيرات البيئة" : n.error}</p> : null}
                   </li>
                 ))}

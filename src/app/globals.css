@@ -218,3 +218,15 @@ html[data-intro="done"] .intro { display: grid; animation: intro-out 380ms var(-
   .marquee { animation: none; flex-wrap: wrap; width: auto; }
   html[data-intro="play"] .intro { display: none; }
 }
+
+/* ───────── Printing (order receipt, packing slips) */
+@media print {
+  [data-noprint] { display: none !important; }
+  html, body { background: #fff !important; color: #000 !important; }
+  .panel { box-shadow: none !important; border: 1px solid #d4d4d4 !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+  @page { margin: 12mm; }
+  .print-break { break-after: page; }
+}
+.print-only { display: none; }
+@media print { .print-only { display: block; } }

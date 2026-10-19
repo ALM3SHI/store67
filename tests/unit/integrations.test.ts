@@ -24,15 +24,23 @@ describe("Aramex without credentials", () => {
     const { quoteShipping } = await import("@/services/shipping/registry");
     expect(aramexShipping.isConfigured()).toBe(false);
     const settings = { rateSource: "aramex", flatRateHalalas: 2500, freeOverHalalas: null, etaAr: "", etaEn: "", carrierName: "", trackingUrlTemplate: "", originCity: "Makkah", originLine1: "", originContactName: "", originPhone: "", cities: [] } as const;
-    const q = await quoteShipping({ city: "Riyadh", weightGrams: 200, settings: { ...settings, cities: [] } });
+    const q = await quoteShipping({ city: "Riyadh", weightGrams: 200, settings: { ...settings, cities: [], cityRates: [] } });
     expect(q).toMatchObject({ amountHalalas: 2500, source: "flat" });
+  });
+
+  it("manual shipping uses a per-city price and delivery time when one is set", async () => {
+    const { quoteShipping } = await import("@/services/shipping/registry");
+    const base = { rateSource: "flat", flatRateHalalas: 2500, freeOverHalalas: null, etaAr: "٣–٥ أيام", etaEn: "3–5 days", carrierName: "", trackingUrlTemplate: "", originCity: "Makkah", originLine1: "", originContactName: "", originPhone: "", cities: [] } as const;
+    const cityRates = [{ city: "Makkah", rateHalalas: 1500, etaAr: "يوم واحد", etaEn: "1 day" }];
+    expect(await quoteShipping({ city: "Makkah", weightGrams: 200, settings: { ...base, cities: [], cityRates } })).toMatchObject({ amountHalalas: 1500, source: "city", etaAr: "يوم واحد" });
+    expect(await quoteShipping({ city: "Riyadh", weightGrams: 200, settings: { ...base, cities: [], cityRates } })).toMatchObject({ amountHalalas: 2500, source: "flat", etaAr: "٣–٥ أيام" });
   });
 
   it("sends a CalculateRate request with ClientInfo when configured", async () => {
     Object.assign(process.env, { ARAMEX_USERNAME: "u", ARAMEX_PASSWORD: "p", ARAMEX_ACCOUNT_NUMBER: "1", ARAMEX_ACCOUNT_PIN: "2", ARAMEX_ACCOUNT_ENTITY: "RUH" });
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ HasErrors: false, TotalAmount: { CurrencyCode: "SAR", Value: 31.5 } }), { status: 200 }));
     const { aramexShipping } = await import("@/services/shipping/aramex");
-    const q = await aramexShipping.quote({ city: "Riyadh", weightGrams: 400, settings: { rateSource: "aramex", flatRateHalalas: 2500, freeOverHalalas: null, etaAr: "", etaEn: "", carrierName: "", trackingUrlTemplate: "", originCity: "Makkah", originLine1: "", originContactName: "", originPhone: "", cities: [] } });
+    const q = await aramexShipping.quote({ city: "Riyadh", weightGrams: 400, settings: { rateSource: "aramex", flatRateHalalas: 2500, freeOverHalalas: null, etaAr: "", etaEn: "", carrierName: "", trackingUrlTemplate: "", originCity: "Makkah", originLine1: "", originContactName: "", originPhone: "", cities: [], cityRates: [] } });
     expect(q.amountHalalas).toBe(3150);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toContain("/RateCalculator/Service_1_0.svc/json/CalculateRate");

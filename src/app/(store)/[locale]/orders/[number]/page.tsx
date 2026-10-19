@@ -11,7 +11,7 @@ import { getOrderDetails, getOrderForCustomer } from "@/services/orders";
 import { retryPayment, CheckoutError, describeAddress } from "@/services/checkout";
 import { getShell } from "@/services/storefront";
 import { Money } from "@/components/ui/price";
-import { CopyOrderLink, AutoRefresh, PurchaseEvent } from "@/components/order/order-client";
+import { CopyOrderLink, AutoRefresh, PurchaseEvent, PrintReceipt } from "@/components/order/order-client";
 import { maskPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +78,11 @@ export default async function OrderPage({ params, searchParams }: Props) {
     <div className="container-x max-w-4xl py-10 md:py-14" data-testid="order-page" data-status={order.status} data-payment={order.paymentStatus}>
       {paid && order.status !== "cancelled" ? <PurchaseEvent number={order.number} value={order.totalHalalas / 100} /> : null}
 
+      <div className="print-only mb-6 border-b border-paper-2 pb-4">
+        <p className="text-xl font-semibold">{shell.storeName} — {t.order.receiptTitle}</p>
+        <p className="text-sm">{[shell.settings.store.contactEmail, shell.settings.store.contactPhone].filter(Boolean).join(" · ")}</p>
+        <p className="mt-1 text-xs">{t.order.receiptNote}</p>
+      </div>
       <div className={cn("flex items-start gap-4 rounded-[var(--radius-panel)] p-5 md:p-6", banner.tone)}>
         <banner.icon size={28} className="mt-0.5 shrink-0" aria-hidden />
         <div className="flex-1">
@@ -85,7 +90,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
             {banner.title}
           </h1>
           {banner.body ? <p className="mt-1 text-metal-700">{banner.body}</p> : null}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2" data-noprint>
             {order.status === "payment_failed" || (order.status === "pending_payment" && sp.retry) ? (
               <form action={retry}>
                 <button className="btn btn-primary btn-sm" data-testid="retry-payment">
@@ -95,6 +100,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
             ) : null}
             <AutoRefresh active={order.status === "pending_payment"} />
             <CopyOrderLink />
+            {paid ? <PrintReceipt /> : null}
           </div>
           {sp.retry === "expired" ? <p className="mt-3 text-sm text-danger">{locale === "ar" ? "انتهت مهلة الدفع لهذا الطلب. أضف المنتج للسلة وأنشئ طلبًا جديدًا." : "The payment window for this order has expired. Add the product to your cart and place a new order."}</p> : null}
         </div>
@@ -172,7 +178,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
       </div>
 
       {events.length ? (
-        <section aria-labelledby="timeline" className="mt-10">
+        <section aria-labelledby="timeline" className="mt-10" data-noprint>
           <h2 id="timeline" className="text-lg font-semibold">{t.order.timeline}</h2>
           <ol className="mt-4 space-y-3 border-s-2 border-paper-2 ps-5">
             {events.map((e) => (
@@ -187,7 +193,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
       ) : null}
 
       {order.status === "delivered" ? (
-        <section aria-labelledby="review" className="mt-10 panel p-5">
+        <section aria-labelledby="review" className="mt-10 panel p-5" data-noprint>
           <h2 id="review" className="text-lg font-semibold">{t.order.writeReview}</h2>
           {sp.review === "thanks" ? (
             <p className="mt-2 text-ok">{t.order.reviewThanks}</p>

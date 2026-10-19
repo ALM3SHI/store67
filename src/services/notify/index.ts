@@ -5,12 +5,12 @@ import { brand } from "@/config/brand";
 import { env } from "@/config/env";
 import { getSettings } from "@/services/settings";
 import { customerOrderLink } from "@/services/order-links";
-import { telegramConfigured, transport, type SendResult } from "./transport";
-import { renderAdminNewOrder, renderOrderEmail, type OrderEmailKind } from "./templates";
+import { smsConfigured, telegramConfigured, transport, type SendResult } from "./transport";
+import { renderAdminNewOrder, renderOrderEmail, renderOrderSms, type OrderEmailKind } from "./templates";
 
-export { emailConfigured, telegramConfigured } from "./transport";
+export { emailConfigured, telegramConfigured, smsConfigured } from "./transport";
 
-type Channel = "email" | "telegram";
+type Channel = "email" | "telegram" | "sms";
 
 /**
  * Sends one message at most once per (order, kind, channel, recipient). The row
@@ -144,6 +144,13 @@ export async function notifyOrder(orderId: string, kind: OrderEmailKind, opts: {
       });
       const to = order.email.toLowerCase();
       await deliver(conn, { orderId, kind, channel: "email", recipient: to }, () => transport.email({ to, ...mail }), opts.force);
+    }
+
+    // SMS only for the two messages that matter most, and only when switched on (each SMS costs money).
+    if (opts.only !== "admin" && notifications.customerSms && smsConfigured() && (kind === "order_confirmed" || kind === "order_shipped")) {
+      const [shipment] = kind === "order_shipped" ? await conn.select().from(schema.shipments).where(eq(schema.shipments.orderId, orderId)).orderBy(desc(schema.shipments.createdAt)).limit(1) : [];
+      const text = renderOrderSms(kind, { locale: L, number: order.number, storeName, link: customerOrderLink(order), tracking: shipment?.trackingNumber ?? null });
+      await deliver(conn, { orderId, kind, channel: "sms", recipient: order.phone }, () => transport.sms(order.phone, text), opts.force);
     }
 
     if (opts.only !== "customer" && kind === "order_confirmed" && notifications.newOrderAlerts) {

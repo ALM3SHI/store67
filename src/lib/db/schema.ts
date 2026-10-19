@@ -80,6 +80,13 @@ export const adminUsers = pgTable("admin_users", {
   role: adminRole("role").notNull().default("support"),
   active: boolean("active").notNull().default(true),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  /** Encrypted TOTP secret (set during setup, active once totpEnabledAt is set) */
+  totpSecret: text("totp_secret"),
+  totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),
+  /** Last accepted time step — a code can't be used twice */
+  totpLastStep: integer("totp_last_step"),
+  /** sha256 hashes of unused recovery codes */
+  recoveryCodes: jsonb("recovery_codes").$type<string[]>().notNull().default([]),
   ...timestamps,
 });
 
@@ -564,4 +571,22 @@ export const appErrors = pgTable(
     alertedAt: timestamp("alerted_at", { withTimezone: true }),
   },
   (t) => [index("app_errors_last_seen_idx").on(t.lastSeenAt)],
+);
+
+/**
+ * "Tell me when it's back" requests. The email is kept only until the alert is
+ * sent, then the row is deleted.
+ */
+export const stockAlerts = pgTable(
+  "stock_alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => productVariants.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    locale: text("locale").notNull().default("ar"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("stock_alerts_once_idx").on(t.variantId, t.email)],
 );

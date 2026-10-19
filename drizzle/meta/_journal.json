@@ -29,6 +29,13 @@
       "when": 1792406323115,
       "tag": "0003_notifications_resets_errors",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792422791024,
+      "tag": "0004_stock_alerts_2fa",
+      "breakpoints": true
     }
   ]
 }

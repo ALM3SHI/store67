@@ -12,7 +12,7 @@ export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (pathname.startsWith("/admin")) {
-    if (pathname === "/admin/login" || pathname === "/admin/forgot" || pathname === "/admin/reset") return NextResponse.next();
+    if (pathname === "/admin/login" || pathname === "/admin/login/verify" || pathname === "/admin/forgot" || pathname === "/admin/reset") return NextResponse.next();
     if (!req.cookies.get("s76_admin")?.value) {
       const url = req.nextUrl.clone();
       url.pathname = "/admin/login";

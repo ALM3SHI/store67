@@ -2,7 +2,7 @@ import type { Settings } from "@/services/settings";
 
 export type ShippingQuote = {
   amountHalalas: number;
-  source: "flat" | "aramex" | "flat_fallback";
+  source: "flat" | "city" | "aramex" | "flat_fallback";
   etaAr?: string;
   etaEn?: string;
 };

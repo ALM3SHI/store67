@@ -157,8 +157,8 @@ export async function buildQuote(req: QuoteRequest & { phone?: string }, opts: {
     shipping: {
       amountHalalas: ship ? totals.shippingHalalas : null,
       source: ship?.source ?? null,
-      etaAr: s.shipping.etaAr,
-      etaEn: s.shipping.etaEn,
+      etaAr: ship?.etaAr ?? s.shipping.etaAr,
+      etaEn: ship?.etaEn ?? s.shipping.etaEn,
       freeOverHalalas: s.shipping.freeOverHalalas,
     },
     tax,

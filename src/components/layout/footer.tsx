@@ -39,6 +39,8 @@ export function Footer({ t, locale, shell }: { t: Dictionary; locale: Locale; sh
           <ul className="space-y-2">
             <li><Link className={link} href={`/${locale}/products`}>{t.nav.shop}</Link></li>
             <li><Link className={link} href={`/${locale}/track`}>{t.nav.track}</Link></li>
+            <li><Link className={link} href={`/${locale}/account`}>{t.nav.myOrders}</Link></li>
+            <li><Link className={link} href={`/${locale}/wishlist`}>{t.nav.wishlist}</Link></li>
             <li><Link className={link} href={`/${locale}/pages/contact`}>{t.footer.contact}</Link></li>
             <li><Link className={link} href={`/${locale}/pages/business`}>{t.footer.business}</Link></li>
           </ul>

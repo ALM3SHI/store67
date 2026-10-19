@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Package, Receipt, Users, TicketPercent, Settings, FileBadge, ScrollText, LogOut, Menu, X, Star, FileText, UserCog, ExternalLink, FolderTree, TriangleAlert } from "lucide-react";
+import { LayoutDashboard, Package, Receipt, Users, TicketPercent, Settings, FileBadge, ScrollText, LogOut, Menu, X, Star, FileText, UserCog, ExternalLink, FolderTree, TriangleAlert, ShieldCheck } from "lucide-react";
 import { LogoMark } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 import type { Permission } from "@/lib/auth/permissions";
@@ -20,6 +20,7 @@ const NAV: { href: string; label: string; icon: typeof Package; perm: Permission
   { href: "/admin/settings", label: "إعدادات المتجر", icon: Settings, perm: "settings.manage" },
   { href: "/admin/users", label: "المستخدمون", icon: UserCog, perm: "users.manage" },
   { href: "/admin/audit", label: "سجل العمليات", icon: ScrollText, perm: "audit.view" },
+  { href: "/admin/account", label: "حسابي والأمان", icon: ShieldCheck, perm: "dashboard.view" },
   { href: "/admin/errors", label: "سجل الأخطاء", icon: TriangleAlert, perm: "audit.view" },
 ];
 

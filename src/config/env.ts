@@ -59,6 +59,12 @@ export const env = {
     from: str("EMAIL_FROM"),
     replyTo: str("EMAIL_REPLY_TO"),
   },
+  sms: {
+    /** Taqnyat (https://taqnyat.sa) bearer token. Empty = no SMS. */
+    taqnyatKey: str("TAQNYAT_API_KEY"),
+    /** Sender name approved on your Taqnyat account */
+    sender: str("SMS_SENDER"),
+  },
   telegram: {
     botToken: str("TELEGRAM_BOT_TOKEN"),
     /** Your chat (or group) id; the bot must be allowed to message it. */

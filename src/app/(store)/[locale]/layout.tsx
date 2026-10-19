@@ -84,15 +84,19 @@ export default async function StoreLayout({ children, params }: { children: Reac
                 {t.nav.skip}
               </a>
               <Intro label={t.intro.loading} imageUrl={heroImage} />
-              <AnnouncementBar items={shell.announcements} />
-              <Header />
-              <NetworkStatus />
+              <div data-noprint className="contents">
+                <AnnouncementBar items={shell.announcements} />
+                <Header />
+                <NetworkStatus />
+              </div>
               <main id="main" className="min-h-[60vh]">
                 {children}
               </main>
-              <Footer t={t} locale={locale} shell={shell} />
-              <CartDrawer />
-              <HelpWidget whatsapp={shell.settings.store.whatsapp} aiEnabled={aiConfigured()} suggestions={suggestions} />
+              <div data-noprint className="contents">
+                <Footer t={t} locale={locale} shell={shell} />
+                <CartDrawer />
+                <HelpWidget whatsapp={shell.settings.store.whatsapp} aiEnabled={aiConfigured()} suggestions={suggestions} />
+              </div>
               <Analytics ga4Id={shell.settings.analytics.ga4Id} metaPixelId={shell.settings.analytics.metaPixelId} tiktokPixelId={shell.settings.analytics.tiktokPixelId} />
             </CartProvider>
           </ToastProvider>

@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Search, ShoppingBag, Menu, X, Languages } from "lucide-react";
+import { Search, ShoppingBag, Menu, X, Languages, Heart } from "lucide-react";
+import { useWishlist } from "@/components/wishlist/wishlist";
 import { Logo } from "@/components/brand/logo";
 import { useI18n } from "@/components/i18n-provider";
 import { useCart } from "@/components/cart/cart-provider";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 export function Header() {
   const { t, locale } = useI18n();
   const cart = useCart();
+  const wish = useWishlist();
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -38,6 +40,7 @@ export function Header() {
     { href: `/${locale}`, label: t.nav.home },
     { href: `/${locale}/products`, label: t.nav.shop },
     { href: `/${locale}/track`, label: t.nav.track },
+    { href: `/${locale}/account`, label: t.nav.myOrders },
     { href: `/${locale}/pages/shipping`, label: t.nav.policies },
   ];
 
@@ -74,6 +77,14 @@ export function Header() {
             <Languages size={18} aria-hidden />
             <span className="hidden sm:inline">{t.meta.switchTo}</span>
           </Link>
+          <Link href={`/${locale}/wishlist`} className={cn(iconBtn, "relative hidden sm:inline-flex")} aria-label={`${t.nav.wishlist} (${wish.slugs.length})`} data-testid="wishlist-link">
+            <Heart size={20} />
+            {wish.slugs.length > 0 ? (
+              <span className="absolute -top-0.5 end-0 grid h-5 min-w-5 place-items-center rounded-full bg-danger px-1 text-[11px] font-semibold text-white" data-testid="wishlist-count">
+                {wish.slugs.length}
+              </span>
+            ) : null}
+          </Link>
           <button
             type="button"
             className={cn(iconBtn, "relative")}
@@ -98,7 +109,7 @@ export function Header() {
         {menuOpen ? (
           <nav id="mobile-menu" className="border-t border-white/5 bg-ink md:hidden" aria-label={t.nav.menu}>
             <ul className="container-x flex flex-col py-2">
-              {links.map((l) => (
+              {[...links, { href: `/${locale}/wishlist`, label: `${t.nav.wishlist}${wish.slugs.length ? ` (${wish.slugs.length})` : ""}` }].map((l) => (
                 <li key={l.href}>
                   <Link href={l.href} onClick={() => setMenuOpen(false)} className="flex min-h-12 items-center rounded-xl px-3 text-lg text-metal-100 hover:bg-white/5">
                     {l.label}

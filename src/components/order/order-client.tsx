@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Copy, Check, RefreshCw } from "lucide-react";
+import { Copy, Check, RefreshCw, Printer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/components/i18n-provider";
 import { track } from "@/components/analytics/track";
@@ -61,4 +61,13 @@ export function PurchaseEvent({ number, value }: { number: string; value: number
     track("purchase", { transaction_id: number, value, currency: "SAR" });
   }, [number, value]);
   return null;
+}
+
+export function PrintReceipt() {
+  const { t } = useI18n();
+  return (
+    <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.print()} data-testid="print-receipt">
+      <Printer size={15} /> {t.order.printReceipt}
+    </button>
+  );
 }

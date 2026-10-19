@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/session";
 import { getDb, schema } from "@/lib/db";
@@ -5,7 +6,8 @@ import { roleLabels } from "@/lib/auth/permissions";
 import { PageHeader, Card, Badge } from "@/components/admin/static";
 import { ActionForm } from "@/components/admin/action-form";
 import { SubmitButton } from "@/components/admin/ui";
-import { createAdminUser, updateAdminUser, changeOwnPassword } from "@/features/admin/misc-actions";
+import { createAdminUser, updateAdminUser } from "@/features/admin/misc-actions";
+import { resetUserTwoFactor } from "@/features/admin/account-actions";
 
 export const metadata = { title: "المستخدمون" };
 
@@ -23,6 +25,7 @@ export default async function Users() {
             <input type="hidden" name="id" value={u.id} />
             <span className="min-w-40 font-medium">{u.name}<span className="block text-xs font-normal text-metal-500" dir="ltr">{u.email}</span></span>
             <span className="text-xs text-metal-500">آخر دخول: {u.lastLoginAt ? date.format(u.lastLoginAt) : "—"}</span>
+            <Badge tone={u.totpEnabledAt ? "green" : "gray"}>{u.totpEnabledAt ? "تحقق بخطوتين" : "بدون تحقق بخطوتين"}</Badge>
             {u.id === me.userId ? (
               <Badge tone="ink">{roleLabels[u.role]} — أنت</Badge>
             ) : (
@@ -30,6 +33,7 @@ export default async function Users() {
                 <select name="role" defaultValue={u.role} className="field min-h-9 w-auto py-1 text-sm">{Object.entries(roleLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
                 <label className="flex items-center gap-1.5"><input type="checkbox" name="active" defaultChecked={u.active} /> مفعّل</label>
                 <button className="btn btn-ghost btn-sm ms-auto">حفظ</button>
+                {u.totpEnabledAt ? <button formAction={resetUserTwoFactor} className="btn btn-ghost btn-sm text-danger" title="لمن فقد جواله ورموز الاسترداد">إلغاء التحقق بخطوتين</button> : null}
               </>
             )}
           </form>
@@ -44,11 +48,9 @@ export default async function Users() {
             <SubmitButton>إنشاء الحساب</SubmitButton>
           </ActionForm>
         </Card>
-        <Card title="تغيير كلمة مروري">
-          <ActionForm action={changeOwnPassword} className="grid gap-3">
-            <input name="password" type="password" minLength={12} autoComplete="new-password" placeholder="كلمة مرور جديدة (12 حرفًا على الأقل)" dir="ltr" className="field" required />
-            <SubmitButton variant="ink">تغيير</SubmitButton>
-          </ActionForm>
+        <Card title="حسابك">
+          <p className="text-sm text-metal-700">تغيير كلمة مرورك وتفعيل التحقق بخطوتين من صفحة «حسابي والأمان».</p>
+          <Link href="/admin/account" className="btn btn-ghost btn-sm mt-3">فتح حسابي</Link>
         </Card>
       </div>
     </>

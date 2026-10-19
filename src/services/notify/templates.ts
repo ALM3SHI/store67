@@ -206,3 +206,46 @@ export function renderErrorAlert(d: { source: string; message: string; path: str
   return { subject: `تنبيه خطأ (${d.source}) — ${d.storeName}`, text, html: `<pre dir="auto" style="font-family:monospace;white-space:pre-wrap">${esc(text)}</pre>` };
 }
 
+
+export function renderBackInStock(d: { locale: Lang; productName: string; variant: string; link: string; storeName: string }) {
+  const ar = d.locale === "ar";
+  const name = d.variant ? `${d.productName} (${d.variant})` : d.productName;
+  const subject = ar ? `${name} متوفر الآن — ${d.storeName}` : `${name} is back in stock — ${d.storeName}`;
+  const body = ar
+    ? `طلبت أن نخبرك عند توفر ${name}. أصبح متوفرًا الآن، والكمية قد تكون محدودة.`
+    : `You asked us to tell you when ${name} is available. It's back now — quantities may be limited.`;
+  const cta = ar ? "عرض المنتج" : "View product";
+  const foot = ar ? "هذه رسالة واحدة فقط؛ حذفنا بريدك من قائمة التنبيه بعد إرسالها." : "This is a one-time message; we deleted your email from the alert list after sending it.";
+  const dir = ar ? "rtl" : "ltr";
+  const html = `<div dir="${dir}" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8;max-width:520px;color:#0a0e14">
+<p style="font-weight:bold;font-size:18px;margin:0 0 8px">${esc(d.storeName)}</p>
+<p>${esc(body)}</p>
+<p><a href="${esc(d.link)}" style="display:inline-block;background:#2d63f5;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px">${cta}</a></p>
+<p style="color:#7d8591;font-size:12px">${foot}</p></div>`;
+  return { subject, html, text: `${body}\n\n${cta}: ${d.link}\n\n${foot}` };
+}
+
+/** Short SMS (kept near one Arabic segment where possible). */
+export function renderOrderSms(kind: "order_confirmed" | "order_shipped", d: { locale: Lang; number: string; storeName: string; link: string; tracking?: string | null }) {
+  if (d.locale === "en") {
+    return kind === "order_confirmed"
+      ? `${d.storeName}: order ${d.number} confirmed. Track it: ${d.link}`
+      : `${d.storeName}: order ${d.number} has shipped${d.tracking ? `, tracking ${d.tracking}` : ""}. ${d.link}`;
+  }
+  return kind === "order_confirmed"
+    ? `${d.storeName}: تم تأكيد طلبك ${d.number}. تابعه هنا: ${d.link}`
+    : `${d.storeName}: شُحن طلبك ${d.number}${d.tracking ? ` برقم تتبع ${d.tracking}` : ""}. ${d.link}`;
+}
+
+export function renderOrdersLink(d: { locale: Lang; link: string; minutes: number; storeName: string }) {
+  const ar = d.locale === "ar";
+  const subject = ar ? `رابط الدخول لطلباتك — ${d.storeName}` : `Your sign-in link — ${d.storeName}`;
+  const body = ar ? `افتح الرابط خلال ${d.minutes} دقيقة لعرض كل طلباتك.` : `Open this link within ${d.minutes} minutes to see all your orders.`;
+  const cta = ar ? "عرض طلباتي" : "View my orders";
+  const foot = ar ? "إن لم تطلب هذا الرابط فتجاهل الرسالة." : "If you didn't ask for this link, you can ignore this email.";
+  const html = `<div dir="${ar ? "rtl" : "ltr"}" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8;max-width:520px;color:#0a0e14">
+<p style="font-weight:bold;font-size:18px;margin:0 0 8px">${esc(d.storeName)}</p><p>${esc(body)}</p>
+<p><a href="${esc(d.link)}" style="display:inline-block;background:#2d63f5;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px">${cta}</a></p>
+<p style="color:#7d8591;font-size:12px">${foot}</p></div>`;
+  return { subject, html, text: `${body}\n\n${d.link}\n\n${foot}` };
+}

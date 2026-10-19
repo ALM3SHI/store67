@@ -1,5 +1,6 @@
 import "server-only";
 import { emailConfigured, telegramConfigured } from "@/services/notify";
+import { countWithoutTwoFactor } from "@/services/two-factor";
 import { and, eq, gte, inArray, lte, sql, desc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getAllSettings } from "@/services/settings";
@@ -72,12 +73,13 @@ export type ReadinessItem = { key: string; label: string; ok: boolean; hint: str
 /** Launch checklist — what must be real before taking real orders. */
 export async function launchReadiness(): Promise<ReadinessItem[]> {
   const db = await getDb();
-  const [settings, docs, pages, media, products] = await Promise.all([
+  const [settings, docs, pages, media, products, tf] = await Promise.all([
     getAllSettings(db),
     db.select().from(schema.businessDocuments),
     db.select().from(schema.pages),
     db.select({ n: sql<number>`count(*)::int` }).from(schema.productMedia).where(eq(schema.productMedia.placeholder, true)),
     db.select({ specs: schema.products.specs, warrantyAr: schema.products.warrantyAr }).from(schema.products).where(eq(schema.products.status, "published")),
+    countWithoutTwoFactor(db),
   ]);
   const pay = paymentIntegrationStatus();
   const ship = shippingIntegrationStatus();
@@ -97,6 +99,7 @@ export async function launchReadiness(): Promise<ReadinessItem[]> {
     { key: "storage", label: "تخزين الصور سحابي (Supabase Storage)", ok: env.storage.driver === "supabase", hint: "على Vercel لا يبقى القرص المحلي؛ اضبط STORAGE_DRIVER=supabase.", href: "/admin/settings#integrations" },
     { key: "email", label: "بريد العملاء مهيأ (Resend)", ok: emailConfigured() && settings.notifications.customerEmails, hint: "أضف RESEND_API_KEY و EMAIL_FROM حتى يصل العميل تأكيد الطلب ورقم التتبع.", href: "/admin/settings#notifications" },
     { key: "alerts", label: "تنبيهات الطلبات الجديدة تصلك", ok: settings.notifications.newOrderAlerts && (telegramConfigured() || (emailConfigured() && settings.notifications.adminEmails !== "")), hint: "اربط تيليجرام أو أضف بريد الفريق ثم أرسل تنبيهًا تجريبيًا.", href: "/admin/settings#notifications" },
+    { key: "2fa", label: "التحقق بخطوتين مفعّل لكل حسابات الإدارة", ok: tf.total > 0 && tf.enabled === tf.total, hint: `${tf.total - tf.enabled} حساب بدون تحقق بخطوتين. فعّله من «حسابي والأمان».`, href: "/admin/account" },
     { key: "contact", label: "بيانات التواصل مدخلة", ok: Boolean(settings.store.contactEmail || settings.store.contactPhone || settings.store.whatsapp), hint: "أضف بريدًا أو هاتفًا أو واتساب.", href: "/admin/settings#store" },
   ];
 }

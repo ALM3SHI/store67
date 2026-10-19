@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { getDb, schema } from "@/lib/db";
 import { productStockSummary } from "@/features/admin/product-actions";
 import { PageHeader, Badge, Empty, thClass, tdClass } from "@/components/admin/static";
+import { stockAlertCounts } from "@/services/stock-alerts";
 import { Money } from "@/components/ui/price";
 
 export const metadata = { title: "المنتجات" };
@@ -13,10 +14,11 @@ export const metadata = { title: "المنتجات" };
 export default async function ProductsAdmin() {
   await requireAdmin("products.manage");
   const db = await getDb();
-  const [products, stock, media] = await Promise.all([
+  const [products, stock, media, waiting] = await Promise.all([
     db.select().from(schema.products).orderBy(desc(schema.products.featured), desc(schema.products.updatedAt)),
     productStockSummary(),
     db.select({ productId: schema.productMedia.productId, url: schema.productMedia.url, sort: schema.productMedia.sort }).from(schema.productMedia),
+    stockAlertCounts(db),
   ]);
   const statusLabel = { draft: "مسودة", published: "منشور", archived: "مؤرشف" } as const;
   return (
@@ -46,7 +48,7 @@ export default async function ProductsAdmin() {
                     </td>
                     <td className={tdClass}><Badge tone={p.status === "published" ? "green" : p.status === "draft" ? "amber" : "gray"}>{statusLabel[p.status]}</Badge></td>
                     <td className={tdClass}>{s ? <Money halalas={s.minPrice} locale="ar" /> : "—"}</td>
-                    <td className={tdClass}>{s ? <Badge tone={s.stock === 0 ? "red" : s.stock <= 5 ? "amber" : "gray"}>{s.stock}</Badge> : "—"}</td>
+                    <td className={tdClass}>{s ? <Badge tone={s.stock === 0 ? "red" : s.stock <= 5 ? "amber" : "gray"}>{s.stock}</Badge> : "—"}{waiting.get(p.id) ? <span className="ms-2 text-xs text-metal-500" data-testid="stock-waiting">{waiting.get(p.id)} بانتظار التوفر</span> : null}</td>
                     <td className={tdClass}>{s?.count ?? 0}</td>
                   </tr>
                 );

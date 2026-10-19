@@ -12,6 +12,7 @@ import { QuickBuy } from "./add-button";
 import { PriceTag } from "@/components/ui/price";
 import { Product3D } from "./product-3d";
 import { posterFor } from "@/features/product/view";
+import { WishlistButton } from "@/components/wishlist/wishlist";
 
 const L = (locale: Locale, ar: string, en: string) => (locale === "ar" ? ar || en : en || ar);
 
@@ -134,6 +135,12 @@ export function SpecsSection({ product, t, locale, showDrafts }: { product: Prod
 
 /** "25 SAR, free from 300 SAR" — from settings only. */
 export function shippingSummary(settings: Settings, locale: Locale) {
+  const s = settings.shipping;
+  const varies = s.rateSource === "flat" && s.cityRates.length ? (locale === "ar" ? " (يختلف لبعض المدن)" : " (varies for some cities)") : "";
+  return baseShippingSummary(settings, locale) + varies;
+}
+
+function baseShippingSummary(settings: Settings, locale: Locale) {
   const s = settings.shipping;
   return s.rateSource === "flat"
     ? s.freeOverHalalas !== null
@@ -335,6 +342,7 @@ export function CollectionSection({ products, buys, t, locale }: { products: Pro
                   <Link href={`/${locale}/products/${p.slug}`} className="text-sm font-medium text-metal-700 hover:text-ink">
                     {locale === "ar" ? "التفاصيل" : "Details"}
                   </Link>
+                  <WishlistButton slug={p.slug} className="ms-auto" />
                 </div>
               </div>
             </li>
