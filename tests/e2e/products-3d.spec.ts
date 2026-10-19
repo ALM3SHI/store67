@@ -65,11 +65,11 @@ test.describe("3D products", () => {
   test("viewer falls back to the image when WebGL is unavailable", async ({ browser }) => {
     const ctx = await browser.newContext();
     await ctx.addInitScript(() => {
-      const orig = HTMLCanvasElement.prototype.getContext;
-      // @ts-expect-error — simulate a device without WebGL
-      HTMLCanvasElement.prototype.getContext = function (type: string, ...rest: unknown[]) {
+      // Simulate a device without WebGL
+      const proto = HTMLCanvasElement.prototype as unknown as { getContext: (type: string, ...rest: unknown[]) => unknown };
+      const orig = proto.getContext;
+      proto.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
         if (String(type).startsWith("webgl")) return null;
-        // @ts-expect-error passthrough
         return orig.call(this, type, ...rest);
       };
     });
