@@ -75,6 +75,8 @@ export const env = {
     provider: str("AI_PROVIDER") as "gemini" | "anthropic" | undefined,
     geminiKey: str("GEMINI_API_KEY"),
     geminiModel: str("GEMINI_MODEL") ?? "gemini-3.8-flash",
+    /** Used when the main model is overloaded (503/429). Empty string disables it. */
+    geminiFallbackModel: process.env.GEMINI_FALLBACK_MODEL?.trim() ?? "gemini-3.5-flash-lite",
     anthropicKey: str("ANTHROPIC_API_KEY"),
     model: str("ASSISTANT_MODEL") ?? "claude-haiku-5-5",
     dailyLimit: Number(str("ASSISTANT_DAILY_LIMIT") ?? "300"),

@@ -69,6 +69,15 @@ describe("Gemini provider", () => {
     expect(r.answer).toBe("الشحن 25 ر.س");
   });
 
+  it("retries a busy model, then uses the lighter fallback model", async () => {
+    Object.assign(env.assistant, { geminiKey: "k", geminiModel: "gemini-3.8-flash", geminiFallbackModel: "gemini-3.5-flash-lite" });
+    const busy = () => new Response(JSON.stringify({ error: { message: "high demand" } }), { status: 503 });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(busy()).mockResolvedValueOnce(busy()).mockResolvedValueOnce(geminiReply("الشحن 25 ر.س"));
+    const r = await answerWithAi([{ role: "user", text: "كم الشحن" }], "ar");
+    expect(r.answer).toBe("الشحن 25 ر.س");
+    expect(String(fetchMock.mock.calls[2]![0])).toContain("gemini-3.5-flash-lite:generateContent");
+  });
+
   it("treats a blocked or empty reply as a failure (the route then falls back to FAQ)", async () => {
     Object.assign(env.assistant, { geminiKey: "k" });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ promptFeedback: { blockReason: "SAFETY" } }), { status: 200 }));
